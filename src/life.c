@@ -24,8 +24,8 @@
 #include <time.h>
 
 // constants
-#define X 30
-#define Y 30
+#define X 120
+#define Y 60
 #define buffer_size (X + 1) * Y + 1
 
 // clear screen command
@@ -139,6 +139,9 @@ static gboolean draw_board(GtkWidget *widget, cairo_t *cr, gpointer data)
     double cell_width = (double)width / X;
     double cell_height = (double)height / Y;
 
+    // Disable antialiasing
+    cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+
     // Draw the next generation
     for (int x = 0; x < X; x++)
         for (int y = 0; y < Y; y++)
@@ -185,7 +188,7 @@ int main(int argc, char *argv[])
     // create the main window
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Conway's Game of Life");
-    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+    gtk_container_set_border_width(GTK_CONTAINER(window), 0);
 
     // Set the window to be fullscreen
     gtk_window_fullscreen(GTK_WINDOW(window));
@@ -194,8 +197,16 @@ int main(int argc, char *argv[])
 
     // create a drawing area for the grid
     GtkWidget *grid = gtk_drawing_area_new();
-    gtk_widget_set_size_request(grid, X * 20, Y * 20);
-    gtk_container_add(GTK_CONTAINER(window), grid);
+    gtk_widget_set_size_request(grid, X * 5, Y * 10);
+
+    // Create a grid layout container and add the drawing area to it
+    GtkWidget *grid_container = gtk_grid_new();
+    gtk_grid_set_row_homogeneous(GTK_GRID(grid_container), TRUE);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid_container), TRUE);
+    gtk_grid_attach(GTK_GRID(grid_container), grid, 0, 0, 1, 1);
+
+    // Add the grid container to the main window
+    gtk_container_add(GTK_CONTAINER(window), grid_container);
 
     // connect the draw event
     g_signal_connect(grid, "draw", G_CALLBACK(draw_board), NULL);
