@@ -1,3 +1,5 @@
+:: DEPRECATED - App cannot be compiled on Windows anymore
+
 :: Compila o programa jogo-da-velha com o icone
 
 echo 1 ICON "life.ico" > i.rc

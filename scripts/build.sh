@@ -1,2 +1,1 @@
-gcc -o life ./src/life.c $(pkg-config --cflags --libs gtk+-3.0)
-
+gcc -o life ./src/*.c $(pkg-config --cflags --libs gtk+-3.0)
