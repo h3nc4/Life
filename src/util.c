@@ -22,7 +22,7 @@
 
 /**
  * \brief Initialize the grid with random values
-*/
+ */
 void initialize_grid()
 {
     srand(time(0));
@@ -40,6 +40,18 @@ void hide_cursor()
     GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
     gdk_window_set_cursor(gdk_get_default_root_window(), invisible_cursor);
     g_object_unref(invisible_cursor);
+}
+
+/**
+ * \brief Show the mouse cursor
+ * \details This function is called when on app closure to show the mouse cursor again.
+ */
+void show_cursor()
+{
+    GdkDisplay *display = gdk_display_get_default();
+    GdkCursor *default_cursor = gdk_cursor_new_for_display(display, GDK_LEFT_PTR);
+    gdk_window_set_cursor(gdk_get_default_root_window(), default_cursor);
+    g_object_unref(default_cursor);
 }
 
 /**

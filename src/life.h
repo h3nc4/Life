@@ -34,9 +34,10 @@ extern gboolean grid[X][Y];
 void next_generation(void);
 int get_adjacent_cells(void);
 
-// Prototypes for init.c
+// Prototypes for util.c
 void initialize_grid();
 void hide_cursor();
+void show_cursor();
 GtkWidget *create_main_window();
 
 // Prototypes for draw.c

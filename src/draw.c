@@ -24,7 +24,7 @@
  * \brief Toggle the state of a cell on a mouse click event
  * \param widget The GTK widget
  * \param data The data associated with the event
-*/
+ */
 void toggle_cell(GtkWidget *widget, gpointer data)
 {
     int x = GPOINTER_TO_INT(data) / Y;

@@ -47,7 +47,10 @@ gboolean timer_callback(gpointer data)
 void on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
     if (event->keyval == GDK_KEY_Escape)
+    {
+        show_cursor();
         gtk_main_quit(); // quit the app
+    }
 }
 
 /**
