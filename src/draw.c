@@ -21,19 +21,6 @@
 #include "life.h"
 
 /**
- * \brief Toggle the state of a cell on a mouse click event
- * \param widget The GTK widget
- * \param data The data associated with the event
- */
-void toggle_cell(GtkWidget *widget, gpointer data)
-{
-    int x = GPOINTER_TO_INT(data) / Y;
-    int y = GPOINTER_TO_INT(data) % Y;
-    grid[x][y] = !grid[x][y];
-    gtk_widget_queue_draw(widget);
-}
-
-/**
  * \brief Draw the grid on a GTK widget using Cairo
  * \param widget The GTK widget
  * \param cr The Cairo context for drawing

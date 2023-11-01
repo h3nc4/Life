@@ -31,6 +31,9 @@ extern int i, j;
 // extern gboolean grid[X][Y];
 extern gboolean **grid;
 
+// Boolean value to indicate if the game is paused
+extern gboolean game_paused;
+
 // Prototypes for game.c
 void next_generation(void);
 int get_adjacent_cells(void);
@@ -43,7 +46,6 @@ void show_cursor();
 GtkWidget *create_main_window();
 
 // Prototypes for draw.c
-void toggle_cell(GtkWidget *widget, gpointer data);
 gboolean draw_board(GtkWidget *widget, cairo_t *cr, gpointer data);
 
 // Prototypes for life.c

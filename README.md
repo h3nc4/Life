@@ -2,6 +2,8 @@
 
 This is a simple implementation of Conway's Game of Life in C using ![GTK](https://www.gtk.org/) for the GUI.
 
+The board is filled with random cells at the start. The user can press space to start the simulation or pause it.
+
 ## Building
 
 ### Dependencies

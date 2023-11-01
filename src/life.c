@@ -26,6 +26,9 @@ int i, j;
 // Declare the boolean board
 gboolean **grid;
 
+// Boolean value to indicate if the game is paused
+gboolean game_paused = TRUE;
+
 /**
  * \brief Callback function for the timer to update the board
  * \param data The data associated with the timer
@@ -33,8 +36,16 @@ gboolean **grid;
  */
 gboolean timer_callback(gpointer data)
 {
-    next_generation();
-    gtk_widget_queue_draw(GTK_WIDGET(data));
+    if (game_paused)
+    {
+        show_cursor();
+    }
+    else
+    {
+        hide_cursor();
+        next_generation();
+        gtk_widget_queue_draw(GTK_WIDGET(data));
+    }
     return G_SOURCE_CONTINUE;
 }
 
@@ -46,7 +57,11 @@ gboolean timer_callback(gpointer data)
  */
 void on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-    if (event->keyval == GDK_KEY_Escape)
+    if (event->keyval == GDK_KEY_space)
+    {
+        game_paused = !game_paused;
+    }
+    else if (event->keyval == GDK_KEY_Escape)
     {
         show_cursor();
         free_grid();
@@ -72,8 +87,6 @@ int main(int argc, char *argv[])
     gtk_window_set_title(GTK_WINDOW(window), "Conway's Game of Life");
     gtk_container_set_border_width(GTK_CONTAINER(window), 0);
 
-    hide_cursor();
-
     // Set the window to be fullscreen
     gtk_window_fullscreen(GTK_WINDOW(window));
 
@@ -94,9 +107,6 @@ int main(int argc, char *argv[])
 
     // connect the draw event
     g_signal_connect(grid, "draw", G_CALLBACK(draw_board), NULL);
-
-    // connect the click event to toggle cells
-    g_signal_connect(grid, "button-press-event", G_CALLBACK(toggle_cell), NULL);
 
     // timer to update the board every 300 milliseconds
     guint timer_id = g_timeout_add(300, timer_callback, grid);
