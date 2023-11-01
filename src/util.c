@@ -26,8 +26,21 @@
 void initialize_grid()
 {
     srand(time(0));
+    grid = malloc(X * sizeof(gboolean *));
+    for (i = 0; i < X; i++)
+        grid[i] = malloc(Y * sizeof(gboolean));
     for (i = 0, j = 0; i < X; j = (j + 1) % Y, i += j == 0)
         grid[i][j] = rand() & 1;
+}
+
+/**
+ * \brief Free the grid
+ */
+void free_grid()
+{
+    for (i = 0; i < X; i++)
+        free(grid[i]);
+    free(grid);
 }
 
 /**

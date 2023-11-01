@@ -23,8 +23,8 @@
 // Iterators
 int i, j;
 
-// Set the boolean board empty
-gboolean grid[X][Y] = {0};
+// Declare the boolean board
+gboolean **grid;
 
 /**
  * \brief Callback function for the timer to update the board
@@ -49,6 +49,7 @@ void on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
     if (event->keyval == GDK_KEY_Escape)
     {
         show_cursor();
+        free_grid();
         gtk_main_quit(); // quit the app
     }
 }

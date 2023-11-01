@@ -28,7 +28,8 @@
 extern int i, j;
 
 // Define the boolean board
-extern gboolean grid[X][Y];
+// extern gboolean grid[X][Y];
+extern gboolean **grid;
 
 // Prototypes for game.c
 void next_generation(void);
@@ -36,6 +37,7 @@ int get_adjacent_cells(void);
 
 // Prototypes for util.c
 void initialize_grid();
+void free_grid();
 void hide_cursor();
 void show_cursor();
 GtkWidget *create_main_window();
