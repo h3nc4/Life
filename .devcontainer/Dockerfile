@@ -1,6 +1,8 @@
 FROM debian:bookworm
 
 # Install and set up locales for C, install C development tools and other useful packages
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends locales && \
 	echo "en_US.UTF-8 UTF-8" >/etc/locale.gen && \
