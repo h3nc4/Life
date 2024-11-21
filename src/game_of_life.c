@@ -4,12 +4,12 @@
 #include <stdlib.h>
 
 // Global grid
-int **grid = NULL;
-int **next_grid = NULL;
+static int **grid = NULL;
+static int **next_grid = NULL;
 
 // Grid dimensions
-int width = 0;
-int height = 0;
+static int width = 0;
+static int height = 0;
 
 void allocate_grids()
 {
@@ -17,8 +17,8 @@ void allocate_grids()
 	next_grid = malloc(height * sizeof(int *));
 	for (int y = 0; y < height; y++)
 	{
-		grid[y] = malloc(width * sizeof(int));
-		next_grid[y] = malloc(width * sizeof(int));
+		grid[y] = calloc(width, sizeof(int));
+		next_grid[y] = calloc(width, sizeof(int));
 	}
 }
 
@@ -64,13 +64,15 @@ void update_grid()
 			else
 				next_grid[y][x] = (alive_neighbors == 3) ? 1 : 0;
 		}
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++)
-			grid[y][x] = next_grid[y][x];
+	int **temp = grid;
+	grid = next_grid;
+	next_grid = temp;
 }
 
 void initialize_game(int w, int h)
 {
+	if (grid)
+		free_grids();
 	width = w;
 	height = h;
 	allocate_grids();
