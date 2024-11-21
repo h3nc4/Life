@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+[ -d .venv ] || {
+	python3 -m venv .venv
+	. .venv/bin/activate
+	pip install -U pip wheel setuptools
+	pip install -U pygame numpy pyinstaller
+}
+. .venv/bin/activate
+
+cd src
+gcc -shared -o ./game_of_life.so -fPIC ./game_of_life.c
+python3 ./game_of_life.py

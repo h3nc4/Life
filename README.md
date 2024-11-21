@@ -1,27 +1,31 @@
 # Conways Game of Life in C
 
-This is a simple implementation of Conway's Game of Life in C using ![GTK](https://www.gtk.org/) for the GUI.
+This is a simple implementation of Conway's Game of Life in C using Pygame for the GUI.
 
 The board is filled with random cells at the start. The user can press space to start the simulation or pause it.
 
 ## Building
 
-### Dependencies
+### Dev Dependencies
 
-* GTK 3.0
+* Python 3
+* virtualenv
+* Ctypes
+* Pygame
+* Make
 * GCC
 
-### Compiling
+### Running
 
-To compile the project, run the following command:
+To run a development build, call the following command:
 
 ```bash
-bash scripts/build.sh
+scripts/dev
 ```
 
-This will create a `life` executable in the root directory.
+This will create a virtual environment, install the dependencies, compile shared libraries and run the game.
 
-## About the Game
+## About Conway's Game of Life
 
 ### History
 
