@@ -8,6 +8,10 @@ Features
 
 - Pause and resume the simulation with space
 - Draw cells on the board with your mouse
+- Change colors of the cells with arguments
+- Change cell size with arguments
+
+check --help for more information
 
 Building Dependencies
 ---------------------

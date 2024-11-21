@@ -1,7 +1,7 @@
 # Compiler and flags
 CC = cc
 CFLAGS = -Wall -O2 -fPIC -fopenmp
-LDFLAGS = -shared
+LDFLAGS = -shared -fopenmp
 
 # Target shared library and source files
 TARGET = game_of_life.so
