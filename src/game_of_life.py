@@ -11,10 +11,12 @@ game_of_life.initialize_game.argtypes = [ctypes.c_int, ctypes.c_int]
 game_of_life.initialize_game.restype = None
 game_of_life.update_grid.argtypes = []
 game_of_life.update_grid.restype = None
-game_of_life.get_cell_state.argtypes = [ctypes.c_int, ctypes.c_int]
-game_of_life.get_cell_state.restype = ctypes.c_int
-game_of_life.set_cell_state.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int]
-game_of_life.set_cell_state.restype = None
+game_of_life.get_grid.argtypes = []
+game_of_life.get_grid.restype = ctypes.POINTER(ctypes.c_int)
+game_of_life.flip_cell_state.argtypes = [ctypes.c_int, ctypes.c_int]
+game_of_life.flip_cell_state.restype = None
+game_of_life.free_grids.argtypes = []
+game_of_life.free_grids.restype = None
 
 # Pygame setup
 pygame.display.init()
@@ -24,21 +26,33 @@ clock = pygame.time.Clock()
 
 ALIVE_COLOR = (0, 0, 0)  # Living cells
 DEAD_COLOR = (255, 255, 255)  # Dead cells
+ALIVE_PIXEL = (ALIVE_COLOR[0] << 16) | (ALIVE_COLOR[1] << 8) | ALIVE_COLOR[2]
+DEAD_PIXEL = (DEAD_COLOR[0] << 16) | (DEAD_COLOR[1] << 8) | DEAD_COLOR[2]
 CELL_SIZE = 8  # Pixels
 WIDTH, HEIGHT = info.current_w // CELL_SIZE, info.current_h // CELL_SIZE
 paused = False
 mouse_dragging = False
 
+surface = pygame.Surface((WIDTH, HEIGHT))
+pixels = pygame.surfarray.pixels2d(surface)
+grid_array = None  # Cache the grid array
+
 
 def draw_grid():
-	"""Draw cells based on the current state."""
+	"""Draw cells based on their current state."""
+	global grid_array
+	if grid_array is None:
+		grid_ptr = game_of_life.get_grid()
+		grid_array = ctypes.cast(
+			grid_ptr, ctypes.POINTER(ctypes.c_int * (WIDTH * HEIGHT))
+		).contents
 	for y in range(HEIGHT):
 		for x in range(WIDTH):
-			state = game_of_life.get_cell_state(y, x)
-			color = ALIVE_COLOR if state == 1 else DEAD_COLOR
-			pygame.draw.rect(
-				screen, color, (x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-			)
+			state = grid_array[y * WIDTH + x]
+			pixels[x, y] = ALIVE_PIXEL if state == 1 else DEAD_PIXEL
+	screen.blit(
+		pygame.transform.scale(surface, (info.current_w, info.current_h)), (0, 0)
+	)
 
 
 def handle_mouse_click_or_drag():
@@ -46,8 +60,7 @@ def handle_mouse_click_or_drag():
 	mx, my = pygame.mouse.get_pos()
 	x, y = mx // CELL_SIZE, my // CELL_SIZE
 	if 0 <= x < WIDTH and 0 <= y < HEIGHT:
-		new_state = 1 - game_of_life.get_cell_state(y, x)  # Flip between alive and dead
-		game_of_life.set_cell_state(y, x, new_state)  # Update
+		game_of_life.flip_cell_state(y, x)
 
 
 def handle_events():
@@ -59,7 +72,7 @@ def handle_events():
 		elif event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_SPACE:
 				paused = not paused  # Toggle pause state on space key press
-			elif event.key == pygame.K_q or event.key == pygame.K_ESCAPE:
+			elif event.key in (pygame.K_q, pygame.K_ESCAPE):
 				running = False  # Quit on `q` or `Esc`
 		elif event.type == pygame.MOUSEBUTTONDOWN:
 			if event.button == 1:  # Left click
@@ -77,14 +90,14 @@ running = True
 try:
 	game_of_life.initialize_game(WIDTH, HEIGHT)
 	while running:
-		screen.fill(DEAD_COLOR)  # Fill the screen with the dead cell color
-		draw_grid()  # Draw the grid based on the current state
 		handle_events()  # Process events
 		if not paused:
 			game_of_life.update_grid()
-		pygame.display.flip()  # Update the display
-		clock.tick(10)  # Limit the frame rate to 10 FPS
+		draw_grid()  # Draw cells
+		pygame.display.flip()  # Update display
+		clock.tick(10)  # Limit frame rate to 10 FPS
 finally:
 	print("\nExiting Game of Life. Goodbye!")
+	game_of_life.free_grids()  # Free memory allocated for grids
 	pygame.quit()
 	sys.exit()
