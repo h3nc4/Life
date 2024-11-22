@@ -4,17 +4,17 @@ CFLAGS = -Wall -O2 -fPIC -fopenmp
 LDFLAGS = -shared -fopenmp
 
 # Target shared library and source files
-TARGET = game_of_life.so
-SRCS = game_of_life.c
+TARGET = engine.so
+SRCS = engine.c
 OBJS = $(SRCS:.c=.o)
 
 # Python setup for PyInstaller
 PYTHON = python3
 PYINSTALLER = pyinstaller
-PY_SRCS = game_of_life.py
+PY_SRCS = ui.py
 
 # Default target
-all: dist/game_of_life
+all: life
 
 # Build the shared library
 $(TARGET): $(OBJS)
@@ -25,12 +25,13 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Build the Python executable using PyInstaller
-dist/game_of_life: $(TARGET) $(PY_SRCS)
+life: $(TARGET) $(PY_SRCS)
 	$(PYINSTALLER) --distpath . --onefile --add-data "$(TARGET):." $(PY_SRCS)
+	mv ui life
 
 # Clean up generated files
 clean:
-	rm -fr $(OBJS) $(TARGET) build/ game_of_life.spec game_of_life
+	rm -fr $(OBJS) $(TARGET) build/ ui.spec life
 
 # Phony targets
 .PHONY: clean

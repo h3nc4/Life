@@ -34,17 +34,17 @@ DEAD_COLOR = tuple(map(int, args.dead_color.split(",")))
 CELL_SIZE = args.cell_size
 
 # Load the shared library
-game_of_life = ctypes.CDLL("./game_of_life.so")
-game_of_life.initialize_game.argtypes = [ctypes.c_int, ctypes.c_int]
-game_of_life.initialize_game.restype = None
-game_of_life.update_grid.argtypes = []
-game_of_life.update_grid.restype = None
-game_of_life.get_grid.argtypes = []
-game_of_life.get_grid.restype = ctypes.POINTER(ctypes.c_int)
-game_of_life.flip_cell_state.argtypes = [ctypes.c_int, ctypes.c_int]
-game_of_life.flip_cell_state.restype = None
-game_of_life.free_grids.argtypes = []
-game_of_life.free_grids.restype = None
+engine = ctypes.CDLL("./engine.so")
+engine.initialize_game.argtypes = [ctypes.c_int, ctypes.c_int]
+engine.initialize_game.restype = None
+engine.update_grid.argtypes = []
+engine.update_grid.restype = None
+engine.get_grid.argtypes = []
+engine.get_grid.restype = ctypes.POINTER(ctypes.c_int)
+engine.flip_cell_state.argtypes = [ctypes.c_int, ctypes.c_int]
+engine.flip_cell_state.restype = None
+engine.free_grids.argtypes = []
+engine.free_grids.restype = None
 
 # Pygame setup
 pygame.display.init()
@@ -71,7 +71,7 @@ def draw_grid():
 	"""Draw cells based on their current state."""
 	global grid_array
 	if grid_array is None:
-		grid_ptr = game_of_life.get_grid()
+		grid_ptr = engine.get_grid()
 		grid_array = ctypes.cast(
 			grid_ptr, ctypes.POINTER(ctypes.c_int * (WIDTH * HEIGHT))
 		).contents
@@ -90,7 +90,7 @@ def handle_mouse_click_or_drag():
 	mx, my = pygame.mouse.get_pos()
 	x, y = mx // CELL_SIZE, my // CELL_SIZE
 	if 0 <= x < WIDTH and 0 <= y < HEIGHT and last_selected_cell != (x, y):  # Only toggle if this is a new cell
-		game_of_life.flip_cell_state(y, x)
+		engine.flip_cell_state(y, x)
 		last_selected_cell = (x, y)
 
 
@@ -120,11 +120,11 @@ def handle_events():
 
 running = True
 try:
-	game_of_life.initialize_game(WIDTH, HEIGHT)
+	engine.initialize_game(WIDTH, HEIGHT)
 	while running:
 		handle_events()  # Process events
 		if not paused:
-			game_of_life.update_grid()
+			engine.update_grid()
 			clock.tick(10)  # Limit to 10 FPS when running
 		else:
 			clock.tick(60)  # Increase to 60 FPS when paused for smoother interaction
@@ -132,6 +132,6 @@ try:
 		pygame.display.flip()  # Update display
 finally:
 	print("\nExiting Game of Life. Goodbye!")
-	game_of_life.free_grids()  # Free memory allocated for grids
+	engine.free_grids()  # Free memory allocated for grids
 	pygame.quit()
 	sys.exit()
