@@ -76,9 +76,12 @@ void initialize_game(int w, int h)
 	init_grid();
 }
 
-int *get_grid()
+int **get_grids()
 {
-	return grid;
+	static int *grids[2];
+	grids[0] = grid;
+	grids[1] = next_grid;
+	return grids;
 }
 
 void flip_cell_state(int y, int x)

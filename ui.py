@@ -39,8 +39,8 @@ engine.initialize_game.argtypes = [ctypes.c_int, ctypes.c_int]
 engine.initialize_game.restype = None
 engine.update_grid.argtypes = []
 engine.update_grid.restype = None
-engine.get_grid.argtypes = []
-engine.get_grid.restype = ctypes.POINTER(ctypes.c_int)
+engine.get_grids.argtypes = []
+engine.get_grids.restype = ctypes.POINTER(ctypes.POINTER(ctypes.c_int))
 engine.flip_cell_state.argtypes = [ctypes.c_int, ctypes.c_int]
 engine.flip_cell_state.restype = None
 engine.free_grids.argtypes = []
@@ -64,20 +64,22 @@ last_selected_cell = None
 
 surface = pygame.Surface((WIDTH, HEIGHT))
 pixels = pygame.surfarray.pixels2d(surface)
-grid_array = None  # Cache the grid array
+engine.initialize_game(WIDTH, HEIGHT)
+grids = engine.get_grids()
+grid_ptr = (
+	ctypes.cast(grids[0], ctypes.POINTER(ctypes.c_int * (WIDTH * HEIGHT))).contents,
+	ctypes.cast(grids[1], ctypes.POINTER(ctypes.c_int * (WIDTH * HEIGHT))).contents,
+)
+current_grid = 0
 
 
 def draw_grid():
 	"""Draw cells based on their current state."""
-	global grid_array
-	if grid_array is None:
-		grid_ptr = engine.get_grid()
-		grid_array = ctypes.cast(
-			grid_ptr, ctypes.POINTER(ctypes.c_int * (WIDTH * HEIGHT))
-		).contents
+	global grid_ptr, current_grid
+	current_grid = 1 - current_grid if not paused else current_grid
 	for y in range(HEIGHT):
 		for x in range(WIDTH):
-			state = grid_array[y * WIDTH + x]
+			state = grid_ptr[current_grid][y * WIDTH + x]  # Access directly from pointer
 			pixels[x, y] = ALIVE_PIXEL if state == 1 else DEAD_PIXEL
 	screen.blit(
 		pygame.transform.scale(surface, (info.current_w, info.current_h)), (0, 0)
@@ -120,7 +122,6 @@ def handle_events():
 
 running = True
 try:
-	engine.initialize_game(WIDTH, HEIGHT)
 	while running:
 		handle_events()  # Process events
 		if not paused:
