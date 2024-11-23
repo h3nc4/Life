@@ -39,25 +39,24 @@ static void init_grid()
 static int count_living_neighbors(int y, int x)
 {
 	int living_neighbors = 0;
-	for (int dy = -1; dy <= 1; dy++)
-		for (int dx = -1; dx <= 1; dx++)
-			if (dy || dx) // Skip the cell itself
-				living_neighbors += grid[IDX((y + dy + height) % height, (x + dx + width) % width)];
+	int prev_y = (y - 1 + height) % height;
+	int next_y = (y + 1) % height;
+	int prev_x = (x - 1 + width) % width;
+	int next_x = (x + 1) % width;
+	living_neighbors += grid[IDX(prev_y, prev_x)] + grid[IDX(prev_y, x)] + grid[IDX(prev_y, next_x)];
+	living_neighbors += grid[IDX(y, prev_x)] + grid[IDX(y, next_x)];
+	living_neighbors += grid[IDX(next_y, prev_x)] + grid[IDX(next_y, x)] + grid[IDX(next_y, next_x)];
 	return living_neighbors;
 }
 
 void update_grid()
 {
-#pragma omp parallel for collapse(2) schedule(static) // Parallelize the nested loop
-	for (int y = 0; y < height; y++)
-		for (int x = 0; x < width; x++)
-		{
-			int idx = IDX(y, x);
-			int living_neighbors = count_living_neighbors(y, x);
-			next_grid[idx] = (grid[idx] == 1)
-				? (living_neighbors == 2 || living_neighbors == 3)
-				: (living_neighbors == 3);
-		}
+#pragma omp parallel for schedule(static) // Parallelize the loop
+	for (int idx = 0; idx < size; idx++)
+	{
+		int living_neighbors = count_living_neighbors(idx / width, idx % width);
+		next_grid[idx] = (living_neighbors == 3) || (grid[idx] && living_neighbors == 2);
+	}
 
 	// Swap grids
 	int *temp = grid;
@@ -82,6 +81,11 @@ int **get_grids()
 	grids[0] = grid;
 	grids[1] = next_grid;
 	return grids;
+}
+
+void clear_grid()
+{
+	memset(grid, 0, size * sizeof(int));
 }
 
 void flip_cell_state(int y, int x)

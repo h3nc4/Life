@@ -8,6 +8,7 @@ Features
 
 - Pause and resume the simulation with space
 - Draw cells on the board with your mouse
+- Clear the board with c
 - Change colors of the cells with arguments
 - Change cell size with arguments
 
@@ -26,7 +27,7 @@ Building Dependencies
 
 To compile a release build
 
-make all
+make
 
 To run a development build
 

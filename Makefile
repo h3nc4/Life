@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = cc
-CFLAGS = -Wall -O2 -fPIC -fopenmp
+CFLAGS = -Wall -O3 -march=native -ffast-math -fPIC -fopenmp
 LDFLAGS = -shared -fopenmp
 
 # Target shared library and source files
@@ -16,7 +16,7 @@ PY_SRCS = ui.py
 # Default target
 all: life
 
-# Build the shared library
+# Build shared library
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $(TARGET)
 
@@ -24,14 +24,18 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Build the Python executable using PyInstaller
+# Build Python executable using PyInstaller
 life: $(TARGET) $(PY_SRCS)
 	$(PYINSTALLER) --distpath . --onefile --add-data "$(TARGET):." $(PY_SRCS)
 	mv ui life
 
-# Clean up generated files
 clean:
 	rm -fr $(OBJS) $(TARGET) build/ ui.spec life
 
-# Phony targets
-.PHONY: clean
+install: life
+	install -Dm755 life /usr/local/games/life
+
+uninstall:
+	rm -f /usr/local/games/life
+
+.PHONY: all clean install uninstall
