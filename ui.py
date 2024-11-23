@@ -14,13 +14,13 @@ parser.add_argument(
 	"--alive-color",
 	type=lambda s: tuple(map(int, s.split(","))),
 	default=(255, 255, 255),
-	help="Color of living cells in RGB format, e.g., '255,255,255' (default: black)",
+	help="Color of living cells in RGB format, e.g., '255,255,255' (default: white)",
 )
 parser.add_argument(
 	"--dead-color",
 	type=lambda s: tuple(map(int, s.split(","))),
 	default=(0, 0, 0),
-	help="Color of dead cells (background) in RGB format, e.g., '0,0,0' (default: white)",
+	help="Color of dead cells (background) in RGB format, e.g., '0,0,0' (default: black)",
 )
 parser.add_argument(
 	"--cell-size", type=int, default=8, help="Size of each cell in pixels (default: 8)"
@@ -68,6 +68,7 @@ GAME_SURFACE = pygame.Surface((WIDTH, HEIGHT))
 GAME_PIXELS = pygame.surfarray.pixels2d(GAME_SURFACE)
 ENGINE.initialize_game(WIDTH, HEIGHT)
 GRIDS_PTR_PTR = cast(ENGINE.ptr_to_current_grid(), POINTER(POINTER(c_ubyte * (WIDTH * HEIGHT)))).contents
+
 
 def draw_grid():
 	"""Draw cells based on their current state.
