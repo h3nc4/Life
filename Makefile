@@ -1,6 +1,6 @@
 # Compiler and flags
 CC = cc
-CFLAGS = -Wall -O3 -march=native -ffast-math -fPIC -fopenmp
+CFLAGS = -Wall -O3 -ftree-vectorize -ffast-math -fPIC -fopenmp
 LDFLAGS = -shared -fopenmp
 
 # Target shared library and source files

@@ -39,8 +39,8 @@ ENGINE.initialize_game.argtypes = [c_int, c_int]
 ENGINE.initialize_game.restype = None
 ENGINE.update_grid.argtypes = []
 ENGINE.update_grid.restype = None
-ENGINE.get_grids.argtypes = []
-ENGINE.get_grids.restype = POINTER(POINTER(c_int))
+ENGINE.ptr_to_current_grid.argtypes = []
+ENGINE.ptr_to_current_grid.restype = POINTER(POINTER(c_int))
 ENGINE.flip_cell_state.argtypes = [c_int, c_int]
 ENGINE.flip_cell_state.restype = None
 ENGINE.free_grids.argtypes = []
@@ -67,21 +67,13 @@ last_selected_cell = None
 GAME_SURFACE = pygame.Surface((WIDTH, HEIGHT))
 GAME_PIXELS = pygame.surfarray.pixels2d(GAME_SURFACE)
 ENGINE.initialize_game(WIDTH, HEIGHT)
-GRIDS = ENGINE.get_grids()
-GRIDS_PTR = (
-	cast(GRIDS[0], POINTER(c_int * (WIDTH * HEIGHT))).contents,
-	cast(GRIDS[1], POINTER(c_int * (WIDTH * HEIGHT))).contents,
-)
-current_grid = 0
-
+GRIDS_PTR_PTR = cast(ENGINE.ptr_to_current_grid(), POINTER(POINTER(c_int * (WIDTH * HEIGHT)))).contents
 
 def draw_grid():
 	"""Draw cells based on their current state."""
-	global GRIDS_PTR, current_grid
-	current_grid = 1 - current_grid if not paused else current_grid
 	for y in range(HEIGHT):
 		for x in range(WIDTH):
-			state = GRIDS_PTR[current_grid][y * WIDTH + x]  # Access directly from pointer
+			state = GRIDS_PTR_PTR[0][y * WIDTH + x]  # Access directly from pointer
 			GAME_PIXELS[x, y] = ALIVE_PIXEL if state == 1 else DEAD_PIXEL
 	GAME_SCREEN.blit(
 		pygame.transform.scale(GAME_SURFACE, (DISPLAY_INFO.current_w, DISPLAY_INFO.current_h)), (0, 0)

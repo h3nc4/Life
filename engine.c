@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // Global grid
 static int *grid = NULL;
@@ -13,7 +14,16 @@ static int width = 0;
 static int height = 0;
 static int size = 0; // width * height for flat array indexing
 
+// Macros for index calculation and neighbor counting
 #define IDX(y, x) (((y) * width + (x)))
+#define PREV_Y(y) (((y) - 1 + height) % height)
+#define NEXT_Y(y) (((y) + 1) % height)
+#define PREV_X(x) (((x) - 1 + width) % width)
+#define NEXT_X(x) (((x) + 1) % width)
+#define COUNT_LIVING_NEIGHBORS(y, x) \
+	(grid[IDX(PREV_Y(y), PREV_X(x))] + grid[IDX(PREV_Y(y), (x))] + grid[IDX(PREV_Y(y), NEXT_X(x))] + \
+	grid[IDX((y), PREV_X(x))] + grid[IDX((y), NEXT_X(x))] + \
+	grid[IDX(NEXT_Y(y), PREV_X(x))] + grid[IDX(NEXT_Y(y), (x))] + grid[IDX(NEXT_Y(y), NEXT_X(x))])
 
 // Aligned allocation for SIMD
 static void allocate_grids()
@@ -32,30 +42,23 @@ void free_grids()
 
 static void init_grid()
 {
+	srand(time(NULL));
 	for (int i = 0; i < size; i++)
 		grid[i] = rand() % 2;
 }
 
-static int count_living_neighbors(int y, int x)
-{
-	int living_neighbors = 0;
-	int prev_y = (y - 1 + height) % height;
-	int next_y = (y + 1) % height;
-	int prev_x = (x - 1 + width) % width;
-	int next_x = (x + 1) % width;
-	living_neighbors += grid[IDX(prev_y, prev_x)] + grid[IDX(prev_y, x)] + grid[IDX(prev_y, next_x)];
-	living_neighbors += grid[IDX(y, prev_x)] + grid[IDX(y, next_x)];
-	living_neighbors += grid[IDX(next_y, prev_x)] + grid[IDX(next_y, x)] + grid[IDX(next_y, next_x)];
-	return living_neighbors;
-}
-
 void update_grid()
 {
-#pragma omp parallel for schedule(static) // Parallelize the loop
+#pragma omp parallel for schedule(static) // Parallelize loop
 	for (int idx = 0; idx < size; idx++)
 	{
-		int living_neighbors = count_living_neighbors(idx / width, idx % width);
-		next_grid[idx] = (living_neighbors == 3) || (grid[idx] && living_neighbors == 2);
+		// Count living neighbors
+		int living_neighbors = COUNT_LIVING_NEIGHBORS(idx / width, idx % width);
+
+		// A cell becomes alive if it has exactly 3 neighbors (birth)
+		// A cell stays alive if it is currently alive and has exactly 2 neighbors (survival)
+		// Otherwise, it dies.
+		next_grid[idx] = (living_neighbors == 3) | (grid[idx] & (living_neighbors == 2));
 	}
 
 	// Swap grids
@@ -75,12 +78,9 @@ void initialize_game(int w, int h)
 	init_grid();
 }
 
-int **get_grids()
+int **ptr_to_current_grid()
 {
-	static int *grids[2];
-	grids[0] = grid;
-	grids[1] = next_grid;
-	return grids;
+	return &grid;
 }
 
 void clear_grid()
