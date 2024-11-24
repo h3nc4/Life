@@ -5,6 +5,7 @@ from ctypes import CDLL, c_uint, c_ubyte, POINTER, cast
 from traceback import print_exc
 from argparse import ArgumentParser
 from os import getenv, environ
+import numpy
 
 environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -75,13 +76,21 @@ GRIDS_PTR_PTR = cast(ENGINE.ptr_to_current_grid(), POINTER(POINTER(c_ubyte * (WI
 
 
 def draw_grid():
-	"""Draw cells based on their current state."""
-	for y in range(HEIGHT):
-		for x in range(WIDTH):
-			state = GRIDS_PTR_PTR[0][y * WIDTH + x]  # Access directly from pointer
-			GAME_PIXELS[x, y] = ALIVE_PIXEL if state == 1 else DEAD_PIXEL
+	"""
+	Draws cells based on their current state.
+
+	Uses numpy to directly manipulate the pixel array in a shared memory buffer.
+	"""
+	GAME_PIXELS[:, :] = numpy.where(
+		numpy.array(GRIDS_PTR_PTR[0], copy=False).reshape(HEIGHT, WIDTH).T == 1,
+		ALIVE_PIXEL,
+		DEAD_PIXEL,
+	)
 	GAME_SCREEN.blit(
-		pygame.transform.scale(GAME_SURFACE, (DISPLAY_INFO.current_w, DISPLAY_INFO.current_h)), (0, 0)
+		pygame.transform.scale(
+			GAME_SURFACE, (DISPLAY_INFO.current_w, DISPLAY_INFO.current_h)
+		),
+		(0, 0),
 	)
 
 
@@ -90,7 +99,7 @@ def handle_mouse_click_or_drag():
 	global last_selected_cell
 	mx, my = pygame.mouse.get_pos()
 	x, y = mx // CELL_SIZE, my // CELL_SIZE
-	if 0 <= x < WIDTH and 0 <= y < HEIGHT and last_selected_cell != (x, y):  # Only toggle if this is a new cell
+	if (0 <= x < WIDTH and 0 <= y < HEIGHT and last_selected_cell != (x, y)):  # Only toggle if this is a new cell
 		ENGINE.toggle_cell_state(y, x)
 		last_selected_cell = (x, y)
 
