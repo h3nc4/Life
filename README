@@ -24,6 +24,10 @@ wget "https://github.com/h3nc4/Life/releases/latest/download/life"
 chmod +x life
 ./life
 
+Download the windows version from the releases page at
+
+https://github.com/h3nc4/Life/releases/latest/download/life.exe
+
 Building
 --------
 

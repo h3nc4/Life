@@ -5,19 +5,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
+#ifndef uint8_t
+    typedef unsigned char uint8_t;
+#endif
 #ifdef _WIN32
 #include <malloc.h>
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
 #endif
 
+typedef uint8_t u8int;
+
 // Global grid and its pointers
-static unsigned char *grid = NULL;
-static unsigned char *current_grid = NULL;
-static unsigned char *prev_grid = NULL;
+static u8int *grid = NULL;
+static u8int *current_grid = NULL;
+static u8int *prev_grid = NULL;
 
 typedef struct
 {
-	unsigned char grid_state; // Current grid state (0 or 1)
+	u8int grid_state; // Current grid state (0 or 1)
 	unsigned int width;		  // Grid width
 	unsigned int height;	  // Grid height
 	unsigned int size;		  // Total grid size (width * height)
@@ -44,7 +50,7 @@ void free_grid()
 // Aligned allocation for SIMD
 static void allocate_grid()
 {
-	grid = aligned_alloc(32, 2 * game.size * sizeof(char));
+	grid = aligned_alloc(32, 2 * game.size * sizeof(u8int));
 	if (!grid)
 	{
 		fprintf(stderr, "Error: Failed to allocate memory.\n");
@@ -57,7 +63,7 @@ static void init_grid()
 	srand(time(NULL));
 	for (unsigned int i = 0; i < game.size; i++)
 		grid[i] = rand() % 2;
-	memcpy(grid + game.size, grid, game.size * sizeof(char));
+	memcpy(grid + game.size, grid, game.size * sizeof(u8int));
 	current_grid = grid;
 }
 
@@ -68,7 +74,7 @@ void update_grid()
 #pragma omp parallel for schedule(static) // Parallelize loop
 	for (unsigned int idx = 0; idx < game.size; idx++)
 	{
-		char living_neighbors = COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width);
+		u8int living_neighbors = COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width);
 
 		// A cell becomes alive if it has exactly 3 neighbors (birth)
 		// A cell stays alive if it is currently alive and has exactly 2 neighbors (survival)
@@ -89,14 +95,14 @@ void initialize_game(unsigned int w, unsigned int h)
 	init_grid();
 }
 
-unsigned char **ptr_to_current_grid()
+u8int **ptr_to_current_grid()
 {
 	return &current_grid;
 }
 
 void clear_grid()
 {
-	memset(grid, 0, 2 * game.size * sizeof(char));
+	memset(grid, 0, 2 * game.size * sizeof(u8int));
 }
 
 void restart_game()
