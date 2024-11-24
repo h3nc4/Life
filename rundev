@@ -9,5 +9,5 @@ set -e
 }
 . .venv/bin/activate
 
-cc -shared -o ./engine.so -fPIC -fopenmp ./engine.c
+cc -g -shared -o ./engine.so -fPIC -fopenmp ./engine.c
 python3 ./ui.py "$@"
