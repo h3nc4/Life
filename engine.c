@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <malloc.h>
+#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#endif
 
 // Global grid and its pointers
 static unsigned char *grid = NULL;

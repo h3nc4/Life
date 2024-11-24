@@ -5,6 +5,7 @@ from ctypes import CDLL, c_uint, c_ubyte, POINTER, cast
 from traceback import print_exc
 from argparse import ArgumentParser
 from os import getenv, environ
+from platform import system
 import numpy
 
 environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
@@ -35,7 +36,7 @@ DEAD_COLOR = args.dead_color
 CELL_SIZE = args.cell_size
 
 # Load the shared library
-ENGINE = CDLL("./engine.so")
+ENGINE = CDLL("./engine.dll" if system() == "Windows" else "./engine.so")
 ENGINE.initialize_game.argtypes = [c_uint, c_uint]
 ENGINE.initialize_game.restype = None
 ENGINE.update_grid.argtypes = []
