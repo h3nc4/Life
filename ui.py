@@ -40,11 +40,11 @@ ENGINE.initialize_game.restype = None
 ENGINE.update_grid.argtypes = []
 ENGINE.update_grid.restype = None
 ENGINE.ptr_to_current_grid.argtypes = []
-ENGINE.ptr_to_current_grid.restype = POINTER(POINTER(c_ubyte))
+ENGINE.ptr_to_current_grid.restype = POINTER(c_ubyte)
 ENGINE.toggle_cell_state.argtypes = [c_uint, c_uint]
 ENGINE.toggle_cell_state.restype = None
-ENGINE.free_grids.argtypes = []
-ENGINE.free_grids.restype = None
+ENGINE.free_grid.argtypes = []
+ENGINE.free_grid.restype = None
 ENGINE.clear_grid.argtypes = []
 ENGINE.clear_grid.restype = None
 
@@ -67,18 +67,15 @@ last_selected_cell = None
 GAME_SURFACE = pygame.Surface((WIDTH, HEIGHT))
 GAME_PIXELS = pygame.surfarray.pixels2d(GAME_SURFACE)
 ENGINE.initialize_game(WIDTH, HEIGHT)
+
+# This is a pointer to a pointer to the current generation grid
+# To access the it, its value must be dereferenced twice
+# See draw_grid()
 GRIDS_PTR_PTR = cast(ENGINE.ptr_to_current_grid(), POINTER(POINTER(c_ubyte * (WIDTH * HEIGHT)))).contents
 
 
 def draw_grid():
-	"""Draw cells based on their current state.
-
-	GRIDS_PTR_PTR is a pointer to a pointer to the current generation grid.
-
-	To access it, we need to dereference it twice.
-
-	First, we dereference the pointer to the pointer with [0], then we dereference the pointer to the grid and access it with [y * WIDTH + x].
-	"""
+	"""Draw cells based on their current state."""
 	for y in range(HEIGHT):
 		for x in range(WIDTH):
 			state = GRIDS_PTR_PTR[0][y * WIDTH + x]  # Access directly from pointer
@@ -142,5 +139,5 @@ except Exception:
 		print_exc()  # Print the full exception traceback
 finally:
 	print("\nExiting Game of Life. Goodbye!")
-	ENGINE.free_grids()  # Free memory allocated for grids
+	ENGINE.free_grid()  # Free memory allocated for grids
 	pygame.quit()

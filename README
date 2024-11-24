@@ -17,7 +17,7 @@ check --help for more information
 Running
 -------
 
-To run this game, you need to have Python 3 installed on your system. You can run it with the following:
+No dependencies are needed for runtime. You can run it with the following:
 
 wget "https://github.com/h3nc4/Life/releases/latest/download/life"
 chmod +x life

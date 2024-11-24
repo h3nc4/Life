@@ -8,7 +8,9 @@
 
 // Global grid
 static unsigned char *grid = NULL;
-static unsigned char *next_grid = NULL;
+static unsigned char *current_grid = NULL;
+static unsigned char *prev_grid = NULL;
+static unsigned char grid_state = 0; // 0 or 1
 
 // Grid dimensions
 static unsigned int width = 0;
@@ -22,28 +24,24 @@ static unsigned int size = 0; // width * height for flat array indexing
 #define PREV_X(x) (((x) - 1 + width) % width)
 #define NEXT_X(x) (((x) + 1) % width)
 #define COUNT_LIVING_NEIGHBORS(y, x) \
-	(grid[IDX(PREV_Y(y), PREV_X(x))] + grid[IDX(PREV_Y(y), (x))] + grid[IDX(PREV_Y(y), NEXT_X(x))] + \
-	grid[IDX((y), PREV_X(x))] + grid[IDX((y), NEXT_X(x))] + \
-	grid[IDX(NEXT_Y(y), PREV_X(x))] + grid[IDX(NEXT_Y(y), (x))] + grid[IDX(NEXT_Y(y), NEXT_X(x))])
+	(prev_grid[IDX(PREV_Y(y), PREV_X(x))] + prev_grid[IDX(PREV_Y(y), (x))] + prev_grid[IDX(PREV_Y(y), NEXT_X(x))] + \
+	prev_grid[IDX((y), PREV_X(x))] + prev_grid[IDX((y), NEXT_X(x))] + \
+	prev_grid[IDX(NEXT_Y(y), PREV_X(x))] + prev_grid[IDX(NEXT_Y(y), (x))] + prev_grid[IDX(NEXT_Y(y), NEXT_X(x))])
 
-void free_grids()
+void free_grid()
 {
 	free(grid);
-	free(next_grid);
 }
 
 // Aligned allocation for SIMD
-static void allocate_grids()
+static void allocate_grid()
 {
-	grid = aligned_alloc(32, size * sizeof(char));
-	next_grid = aligned_alloc(32, size * sizeof(char));
-	if (!grid || !next_grid) {
-		fprintf(stderr, "Error: Failed to allocate memory for the grids.\n");
-		free_grids();
+	grid = aligned_alloc(32, 2 * size * sizeof(char));
+	if (!grid)
+	{
+		fprintf(stderr, "Error: Failed to allocate memory.\n");
 		exit(EXIT_FAILURE);
 	}
-	memset(grid, 0, size * sizeof(char));
-	memset(next_grid, 0, size * sizeof(char));
 }
 
 static void init_grid()
@@ -51,10 +49,14 @@ static void init_grid()
 	srand(time(NULL));
 	for (unsigned int i = 0; i < size; i++)
 		grid[i] = rand() % 2;
+	memcpy(grid + size, grid, size * sizeof(char));
+	current_grid = grid;
 }
 
 void update_grid()
 {
+	current_grid = grid + size * grid_state;
+	prev_grid = grid + size * (1 - grid_state);
 #pragma omp parallel for schedule(static) // Parallelize loop
 	for (unsigned int idx = 0; idx < size; idx++)
 	{
@@ -64,38 +66,35 @@ void update_grid()
 		// A cell becomes alive if it has exactly 3 neighbors (birth)
 		// A cell stays alive if it is currently alive and has exactly 2 neighbors (survival)
 		// Otherwise, it dies.
-		next_grid[idx] = (living_neighbors == 3) | (grid[idx] & (living_neighbors == 2));
+		current_grid[idx] = (living_neighbors == 3) | (prev_grid[idx] & (living_neighbors == 2));
 	}
-
-	// Swap grids
-	unsigned char *temp = grid;
-	grid = next_grid;
-	next_grid = temp;
+	grid_state = 1 - grid_state;
 }
 
 void initialize_game(unsigned int w, unsigned int h)
 {
 	if (grid)
-		free_grids();
+		free_grid();
 	width = w;
 	height = h;
 	size = width * height;
-	allocate_grids();
+	allocate_grid();
 	init_grid();
 }
 
 unsigned char **ptr_to_current_grid()
 {
-	return &grid;
+	return &current_grid;
 }
 
 void clear_grid()
 {
 	memset(grid, 0, size * sizeof(char));
+	grid_state = 0;
 }
 
 void toggle_cell_state(unsigned int y, unsigned int x)
 {
 	unsigned int idx = IDX(y, x);
-	grid[idx] = 1 - grid[idx]; // Toggle between 0 and 1
+	current_grid[idx] = 1 - current_grid[idx]; // Toggle between 0 and 1
 }
