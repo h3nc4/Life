@@ -1,0 +1,52 @@
+name: Build Project
+description: 'Build project on Windows and Linux'
+
+on: push
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: MINGW64
+          update: true
+          install: git base-devel mingw-w64-x86_64-toolchain
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Update PATH
+        run: Add-Content $env:GITHUB_PATH "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin"
+      - name: Install dependencies
+        run: pip install pygame numpy pyinstaller
+      - name: Build
+        run: make life-win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: life-win-x86_64
+          path: life.exe
+          compression-level: 9
+          retention-days: 1
+  linux-build:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3.13-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get full-upgrade -y gcc libc-dev make --no-install-recommends
+          pip install --upgrade pip
+          pip install pygame numpy pyinstaller
+      - name: Build
+        run: make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: life-linux-x86_64
+          path: life
+          compression-level: 9
+          retention-days: 1
