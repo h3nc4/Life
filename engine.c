@@ -92,8 +92,7 @@ unsigned char **ptr_to_current_grid()
 
 void clear_grid()
 {
-	memset(grid, 0, game.size * sizeof(char));
-	game.grid_state = 0;
+	memset(grid, 0, 2 * game.size * sizeof(char));
 }
 
 void toggle_cell_state(unsigned int y, unsigned int x)
