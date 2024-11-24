@@ -1,7 +1,10 @@
-name: Build Project
-description: 'Build project on Windows and Linux'
+name: Build and Release
+description: 'Build project on Windows and Linux, then create a release'
 
-on: push
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   windows-build:
@@ -25,10 +28,11 @@ jobs:
         run: make life-win
       - uses: actions/upload-artifact@v4
         with:
-          name: life-win-x86_64
+          name: life-win.x86_64
           path: life.exe
           compression-level: 9
           retention-days: 1
+
   linux-build:
     runs-on: ubuntu-latest
     container:
@@ -44,9 +48,33 @@ jobs:
           pip install pygame numpy pyinstaller
       - name: Build
         run: make
+      - name: Tar
+        run: tar -cf life.tar life
       - uses: actions/upload-artifact@v4
         with:
-          name: life-linux-x86_64
-          path: life
+          name: life-linux.x86_64
+          path: life.tar
           compression-level: 9
           retention-days: 1
+
+  release:
+    needs: [windows-build, linux-build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: life-win.x86_64
+      - uses: actions/download-artifact@v4
+        with:
+          name: life-linux.x86_64
+      - name: Untar
+        run: tar -xf life.tar
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            life.exe
+            life
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
