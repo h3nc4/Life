@@ -95,6 +95,11 @@ void clear_grid()
 	memset(grid, 0, 2 * game.size * sizeof(char));
 }
 
+void restart_game()
+{
+	init_grid();
+}
+
 void toggle_cell_state(unsigned int y, unsigned int x)
 {
 	unsigned int idx = IDX(y, x);

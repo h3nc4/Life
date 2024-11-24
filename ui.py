@@ -48,6 +48,8 @@ ENGINE.free_grid.argtypes = []
 ENGINE.free_grid.restype = None
 ENGINE.clear_grid.argtypes = []
 ENGINE.clear_grid.restype = None
+ENGINE.restart_game.argtypes = []
+ENGINE.restart_game.restype = None
 
 # Pygame setup
 pygame.display.init()
@@ -117,6 +119,8 @@ def handle_events():
 				running = False  # Quit on `q` or `Esc`
 			elif event.key == pygame.K_c:
 				ENGINE.clear_grid()  # Clear the grid on `c` key press
+			elif event.key == pygame.K_r:
+				ENGINE.restart_game()  # Restart the game on `r` key press
 		elif event.type == pygame.MOUSEBUTTONDOWN:
 			if event.button == 1:  # Left click
 				handle_mouse_click_or_drag()
