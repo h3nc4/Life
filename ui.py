@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from os import getenv, environ
 from platform import system
 import numpy
+import time
 
 environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame
@@ -135,19 +136,41 @@ def handle_events():
 				handle_mouse_click_or_drag()
 
 
+def debug_print(*args, **kwargs):
+	"""Print debug messages if the DEBUG environment variable is set."""
+	if getenv("DEBUG"):
+		print(*args, **kwargs)
+
+
+start_time = time.time()
+frame_count = 0
 running = True
 last_update_time = pygame.time.get_ticks()
 update_interval = 100
 try:
 	while running:
+		current_time = pygame.time.get_ticks()  # Define current_time at the start of the loop
 		handle_events()  # Process events
-		current_time = pygame.time.get_ticks()
 		if current_time - last_update_time >= update_interval and not paused:
+			update_time = time.time()
 			ENGINE.update_grid()
-			last_update_time = current_time  # Update the last update time
+			debug_print(f"Update time: {time.time() - update_time}")
+			last_update_time = current_time
+		draw_grid_time = time.time()
 		draw_grid()  # Draw cells
+		debug_print(f"Draw grid time: {time.time() - draw_grid_time}")
+		display_time = time.time()
 		pygame.display.flip()  # Update display
+		debug_print(f"Display time: {time.time() - display_time}")
 		GAME_CLOCK.tick(60)  # Run at 60 FPS
+		if not getenv("DEBUG"):
+			continue
+		frame_count += 1
+		current_time = time.time()
+		if current_time - start_time >= 1.0:  # Every second
+			print(f"FPS: {frame_count}")
+			frame_count = 0
+			start_time = current_time
 except Exception:
 	if getenv("DEBUG"):
 		print_exc()  # Print the full exception traceback
