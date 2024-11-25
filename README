@@ -33,9 +33,6 @@ Building
 
 - Python 3
 - Virtualenv
-- Pygame
-- Numpy
-- Pyinstaller
 - Make
 - GCC
 
@@ -48,6 +45,10 @@ To run a development build
 ./rundev
 
 The above will create a virtual environment, install the dependencies, compile shared libraries and run the game.
+
+Install the following dependencies to run automated tests
+
+xvfb bc
 
 About Conway's Game of Life
 ---------------------------

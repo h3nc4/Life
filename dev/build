@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+make clean
+make
+mv life life.tmp
+make clean
+mv life.tmp life
