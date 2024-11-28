@@ -97,16 +97,20 @@ void initialize_game(unsigned int w, unsigned int h)
 {
 	if (grid)
 		free_grid();
-	game.width = w;
-	game.height = h;
+	// Width and height are swapped to optimize cache access
+	game.width = h;
+	game.height = w;
 	game.size = game.width * game.height;
 	allocate_grid();
 	init_grid();
 }
 
-u8int **ptr_to_current_grid()
+u8int **ptr_to_both_grids()
 {
-	return &current_grid;
+	static u8int *ptrs[2];
+	ptrs[0] = current_grid;
+	ptrs[1] = prev_grid;
+	return ptrs;
 }
 
 void clear_grid()
