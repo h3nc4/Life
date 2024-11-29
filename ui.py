@@ -4,37 +4,15 @@
 from wrapper import GameEngine
 from traceback import print_exc
 from game import PygameManager
-from argparse import ArgumentParser
+from parser import parse_args
 from os import getenv
 import time
 
-parser = ArgumentParser(description="Conway's Game of Life")
-parser.add_argument(
-	"--alive-color",
-	type=lambda s: tuple(map(int, s.split(","))),
-	default=(255, 255, 255),
-	help="Color of living cells in RGB format, e.g., '255,255,255' (default: white)",
-)
-parser.add_argument(
-	"--dead-color",
-	type=lambda s: tuple(map(int, s.split(","))),
-	default=(0, 0, 0),
-	help="Color of dead cells (background) in RGB format, e.g., '0,0,0' (default: black)",
-)
-parser.add_argument(
-	"--cell-size", type=int, default=8, help="Size of each cell in pixels (default: 8)"
-)
-args = parser.parse_args()
-
-# Set easy-to-use variables for colors and cell size
-ALIVE_COLOR = args.alive_color
-DEAD_COLOR = args.dead_color
-CELL_SIZE = args.cell_size
 
 # Initialize the game engine and Pygame manager
+ALIVE_COLOR, DEAD_COLOR, CELL_SIZE = parse_args()
 ENGINE = GameEngine(1920 // CELL_SIZE, 1080 // CELL_SIZE)
 MANAGER = PygameManager(ENGINE.WIDTH, ENGINE.HEIGHT, CELL_SIZE, ALIVE_COLOR, DEAD_COLOR)
-
 GAME_MATRIX, GAME_MATRIX_NEXT = ENGINE.get_grids()
 
 
