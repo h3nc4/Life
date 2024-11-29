@@ -1,7 +1,10 @@
-# wrapper.py
+# See LICENSE file for copyright and license details.
+# Copyright (C) 2023-2024  Henrique Almeida <me@h3nc4.com>
+
 from ctypes import CDLL, c_uint, c_ubyte, POINTER, cast
 from platform import system
 import numpy
+
 
 class GameEngine:
 	def __init__(self, width, height):

@@ -3,13 +3,10 @@
 
 from wrapper import GameEngine
 from traceback import print_exc
+from game import PygameManager
 from argparse import ArgumentParser
-from os import getenv, environ
-import numpy
+from os import getenv
 import time
-
-environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
-import pygame
 
 parser = ArgumentParser(description="Conway's Game of Life")
 parser.add_argument(
@@ -34,84 +31,11 @@ ALIVE_COLOR = args.alive_color
 DEAD_COLOR = args.dead_color
 CELL_SIZE = args.cell_size
 
-# Pygame setup
-pygame.display.init()
-DISPLAY_INFO = pygame.display.Info()
-flags = pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
-try:
-	GAME_SCREEN = pygame.display.set_mode((DISPLAY_INFO.current_w, DISPLAY_INFO.current_h), flags)
-except pygame.error:  # Fallback to software rendering if hardware acceleration fails
-	GAME_SCREEN = pygame.display.set_mode((DISPLAY_INFO.current_w, DISPLAY_INFO.current_h), pygame.FULLSCREEN)
-GAME_CLOCK = pygame.time.Clock()
+# Initialize the game engine and Pygame manager
+ENGINE = GameEngine(1920 // CELL_SIZE, 1080 // CELL_SIZE)
+MANAGER = PygameManager(ENGINE.WIDTH, ENGINE.HEIGHT, CELL_SIZE, ALIVE_COLOR, DEAD_COLOR)
 
-# Create the game engine
-ENGINE = GameEngine(DISPLAY_INFO.current_w // CELL_SIZE, DISPLAY_INFO.current_h // CELL_SIZE)
-
-# Convert colors to the pixel format used by pygame
-ALIVE_PIXEL = (ALIVE_COLOR[0] << 16) | (ALIVE_COLOR[1] << 8) | ALIVE_COLOR[2]
-DEAD_PIXEL = (DEAD_COLOR[0] << 16) | (DEAD_COLOR[1] << 8) | DEAD_COLOR[2]
-
-# Define the width and height based on the cell size and screen size
-WIDTH, HEIGHT = DISPLAY_INFO.current_w // CELL_SIZE, DISPLAY_INFO.current_h // CELL_SIZE
-paused = False
-mouse_dragging = False
-last_selected_cell = None
-
-SCALED_SURFACE = pygame.Surface((DISPLAY_INFO.current_w, DISPLAY_INFO.current_h))
-GAME_SURFACE = pygame.Surface((WIDTH, HEIGHT), depth=32)
-GAME_PIXELS = pygame.surfarray.pixels2d(GAME_SURFACE)
-
-# This is a pointer to a pointer to the current generation grid
-GAME_MATRIX1, GAME_MATRIX2 = ENGINE.get_grids()
-COLOR_LUT = numpy.array([DEAD_PIXEL, ALIVE_PIXEL], dtype=numpy.uint32)
-
-def draw_grid():
-	"""Draws cells based on their current state."""
-	GAME_PIXELS[:, :] = COLOR_LUT[GAME_MATRIX1]
-	pygame.transform.scale(GAME_SURFACE, (DISPLAY_INFO.current_w, DISPLAY_INFO.current_h), SCALED_SURFACE)
-	GAME_SCREEN.blit(SCALED_SURFACE, (0, 0))
-
-
-def handle_mouse_click_or_drag():
-	"""Handle mouse input for toggling cell states."""
-	global last_selected_cell
-	mx, my = pygame.mouse.get_pos()
-	x, y = mx // CELL_SIZE, my // CELL_SIZE
-	if (0 <= x < WIDTH and 0 <= y < HEIGHT and last_selected_cell != (x, y)):  # Only toggle if this is a new cell
-		ENGINE.toggle_cell(x, y)
-		last_selected_cell = (x, y)
-
-
-def handle_events():
-	"""Process all Pygame events."""
-	global running, paused, mouse_dragging, last_selected_cell
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			running = False
-		elif event.type == pygame.KEYDOWN:
-			if event.key == pygame.K_SPACE:
-				paused = not paused  # Toggle pause state on space key press
-			elif event.key in (pygame.K_q, pygame.K_ESCAPE):
-				running = False  # Quit on `q` or `Esc`
-			elif event.key == pygame.K_c:
-				ENGINE.clear()  # Clear the grid on `c` key press
-			elif event.key == pygame.K_r:
-				ENGINE.restart()  # Restart the game on `r` key press
-		elif event.type == pygame.MOUSEBUTTONDOWN:
-			if event.button == 1:  # Left click
-				handle_mouse_click_or_drag()
-				mouse_dragging = True
-		elif event.type == pygame.MOUSEBUTTONUP:
-			if event.button == 1:  # Left button released
-				mouse_dragging = False
-				last_selected_cell = None  # Reset the last toggled cell
-		elif event.type == pygame.MOUSEMOTION:
-			if mouse_dragging:  # If dragging with left button
-				handle_mouse_click_or_drag()
-
-
-def pyrules():
-	pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION])
+GAME_MATRIX, GAME_MATRIX_NEXT = ENGINE.get_grids()
 
 
 def debug_print(*args, **kwargs):
@@ -123,26 +47,25 @@ def debug_print(*args, **kwargs):
 start_time = time.time()
 frame_count = 0
 running = True
-last_update_time = pygame.time.get_ticks()
+last_update_time = MANAGER.get_ticks()
 update_interval = 100
-pyrules()
 try:
-	while running:
-		current_time = pygame.time.get_ticks()  # Define current_time at the start of the loop
-		handle_events()  # Process events
-		if current_time - last_update_time >= update_interval and not paused:
+	while MANAGER.running:
+		current_time = MANAGER.get_ticks()
+		MANAGER.handle_events(ENGINE)
+		if current_time - last_update_time >= update_interval and not MANAGER.paused:
 			update_time = time.time()
-			GAME_MATRIX1, GAME_MATRIX2 = GAME_MATRIX2, GAME_MATRIX1  # Swap the grids
+			GAME_MATRIX, GAME_MATRIX_NEXT = GAME_MATRIX_NEXT, GAME_MATRIX  # Swap the grids
 			ENGINE.update()
 			debug_print(f"Update time: {time.time() - update_time}")
 			last_update_time = current_time
 		draw_grid_time = time.time()
-		draw_grid()  # Draw cells
-		debug_print(f"Draw grid time: {time.time() - draw_grid_time}")
+		MANAGER.draw_grid(GAME_MATRIX)
 		display_time = time.time()
-		pygame.display.flip()  # Update display
+		debug_print(f"Draw grid time: {display_time - draw_grid_time}")
+		MANAGER.update_display()
 		debug_print(f"Display time: {time.time() - display_time}")
-		GAME_CLOCK.tick(60)  # Run at 60 FPS
+		MANAGER.tick(60)
 		if not getenv("DEBUG"):
 			continue
 		frame_count += 1
@@ -157,4 +80,4 @@ except Exception:
 finally:
 	print("\nExiting Game of Life. Goodbye!")
 	ENGINE.free_grid()  # Free memory allocated for grids
-	pygame.quit()
+	MANAGER.quit()
