@@ -1,20 +1,7 @@
 /* See LICENSE file for copyright and license details.
  * Copyright (C) 2023-2024  Henrique Almeida <me@h3nc4.com> */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <stdint.h>
-#ifndef uint8_t
-typedef unsigned char uint8_t;
-#endif
-#ifdef _WIN32
-#include <malloc.h>
-#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#endif
-
-typedef uint8_t u8int;
+#include "engine.h"
 
 // Global grid and its pointers
 static u8int *grid = NULL;
@@ -22,14 +9,6 @@ static u8int *current_grid = NULL;
 static u8int *prev_grid = NULL;
 // This array stores the offset of each row in the grid
 static unsigned int *row_offsets = NULL;
-
-typedef struct
-{
-	u8int grid_state;	 // Current grid state (0 or 1)
-	unsigned int width;	 // Grid width
-	unsigned int height; // Grid height
-	unsigned int size;	 // Total grid size (width * height)
-} rules;
 
 static rules game;
 
