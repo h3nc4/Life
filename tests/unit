@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+cp engine.c engine.h tests/
+sed -i 's/^static//g' tests/engine.c
+
+(
+	cd tests
+	cc -o tests tests.c engine.c
+	./tests
+)
+
+rm -f tests/engine.c tests/engine.h tests/tests
