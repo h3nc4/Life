@@ -1,0 +1,20 @@
+{
+	"name": "Life Dev Container",
+	"dockerFile": "dev/Dockerfile",
+	"mounts": ["type=bind,source=${localEnv:HOME},target=/home/dev"],
+	"workspaceMount": "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
+	"workspaceFolder": "/workdir",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"GitHub.copilot",
+				"GitHub.copilot-chat",
+				"donjayamanne.githistory",
+				"eamodio.gitlens",
+				"ms-vscode.cpptools-extension-pack",
+				"ms-python.python",
+				"timonwong.shellcheck"
+			]
+		}
+	}
+}
