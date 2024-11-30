@@ -7,7 +7,7 @@ readonly DEBUG DISPLAY
 
 readonly MAX_LOG_FILES=5
 readonly LOG_FILE="./logs/fps.log"
-readonly RESOLUTIONS="1920x1080 2560x1440 3840x2160 5120x2880 7680x4320"
+readonly RESOLUTIONS="1366x768 1920x1080 2560x1440 3840x2160 5120x2880"
 readonly TIMEOUT=10
 
 [ -x ./life ] # Exits if the life binary is not found

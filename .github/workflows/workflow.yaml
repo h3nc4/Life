@@ -1,5 +1,5 @@
-name: Build and Release
-description: 'Build project on Windows and Linux, then create a release'
+name: Test, Build and Release Life
+description: 'Test on Linux, Build on Windows and Linux, then create a release with artifacts'
 
 on:
   push:
@@ -7,7 +7,26 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy bc
+          pip install --upgrade pip
+          pip install pygame numpy pyinstaller
+      - name: Build
+        run: make
+      - name: Test
+        run: dev/test
+
   windows-build:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,10 +35,10 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: git base-devel mingw-w64-x86_64-toolchain
+          install: base-devel mingw-w64-x86_64-toolchain
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3'
       - name: Update PATH
         run: Add-Content $env:GITHUB_PATH "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin"
       - name: Install dependencies
@@ -34,16 +53,17 @@ jobs:
           retention-days: 1
 
   linux-build:
+    needs: test
     runs-on: ubuntu-latest
     container:
-      image: python:3.13-slim
+      image: python:3-slim
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get full-upgrade -y gcc libc-dev make --no-install-recommends
+          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make
           pip install --upgrade pip
           pip install pygame numpy pyinstaller
       - name: Build
