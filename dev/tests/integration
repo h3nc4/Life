@@ -12,6 +12,6 @@ cc -Wall -O3 -ftree-vectorize -ffast-math -fPIC -fopenmp -c -o ./engine.o ./engi
 cc ./engine.o -shared -fopenmp -o ./engine.so
 mv ./engine.c.orig ./engine.c
 
-pytest tests/tests.py
+pytest dev/tests/tests.py
 
 rm -f ./engine.so ./engine.o

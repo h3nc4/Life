@@ -7,7 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  test:
+  acceptance:
     runs-on: ubuntu-latest
     container:
       image: python:3-slim
@@ -25,8 +25,38 @@ jobs:
       - name: Test
         run: dev/test
 
+  unit:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get upgrade -y --no-install-recommends gcc libc-dev
+      - name: Test
+        run: dev/tests/unit
+
+  integration:
+    runs-on: ubuntu-latest
+    container:
+      image: python:3-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy
+          pip install --upgrade pip
+          pip install pygame numpy pytest
+      - name: Test
+        run: dev/tests/integration
+
   windows-build:
-    needs: test
+    needs: [acceptance, unit, integration]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +83,7 @@ jobs:
           retention-days: 1
 
   linux-build:
-    needs: test
+    needs: [acceptance, unit, integration]
     runs-on: ubuntu-latest
     container:
       image: python:3-slim

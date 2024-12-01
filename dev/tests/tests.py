@@ -2,7 +2,7 @@ import pytest
 import sys
 from os.path import dirname, abspath
 
-sys.path.insert(0, dirname(dirname(abspath(__file__))))
+sys.path.insert(0, dirname(dirname(dirname(abspath(__file__)))))
 from wrapper import GameEngine
 from game import PygameManager
 
