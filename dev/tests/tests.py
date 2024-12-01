@@ -9,10 +9,8 @@ from game import PygameManager
 
 def test_game_engine():
 	ENGINE = GameEngine(10, 10)
-	assert ENGINE.WIDTH == 10
-	assert ENGINE.HEIGHT == 10
-	assert ENGINE.GAME_MATRIX1.shape == (10, 10)
-	assert ENGINE.GAME_MATRIX2.shape == (10, 10)
+	assert ENGINE.GAME_MATRIX.shape == (10, 10)
+	assert ENGINE.GAME_MATRIX_NEXT.shape == (10, 10)
 
 def test_pygame_manager():
 	MANAGER = PygameManager(1366, 768, 1, (255, 255, 255), (0, 0, 0))

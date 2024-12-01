@@ -65,28 +65,7 @@ class PygameManager:
 	def handle_events(self, engine):
 		"""Handle Pygame events."""
 		for event in pygame.event.get():
-			if event.type == pygame.QUIT:
-				self.running = False
-			elif event.type == pygame.KEYDOWN:
-				if event.key == pygame.K_SPACE:
-					self.paused = not self.paused
-				elif event.key in (pygame.K_q, pygame.K_ESCAPE):
-					self.running = False
-				elif event.key == pygame.K_c:
-					engine.clear()
-				elif event.key == pygame.K_r:
-					engine.restart()
-			elif event.type == pygame.MOUSEBUTTONDOWN:
-				if event.button == 1:
-					self._handle_mouse_click_or_drag(engine)
-					self.mouse_dragging = True
-			elif event.type == pygame.MOUSEBUTTONUP:
-				if event.button == 1:
-					self.mouse_dragging = False
-					self.last_selected_cell = None
-			elif event.type == pygame.MOUSEMOTION:
-				if self.mouse_dragging:
-					self._handle_mouse_click_or_drag(engine)
+			event_handler(event, engine, self)
 
 
 	def _handle_mouse_click_or_drag(self, engine):
@@ -101,3 +80,28 @@ class PygameManager:
 	def quit(self):
 		"""Clean up Pygame."""
 		pygame.quit()
+
+
+def event_handler(event, engine, pygame_manager):
+	if event.type == pygame.QUIT:
+		pygame_manager.running = False
+	elif event.type == pygame.KEYDOWN:
+		if event.key == pygame.K_SPACE:
+			pygame_manager.paused = not pygame_manager.paused
+		elif event.key in (pygame.K_q, pygame.K_ESCAPE):
+			pygame_manager.running = False
+		elif event.key == pygame.K_c:
+			engine.clear()
+		elif event.key == pygame.K_r:
+			engine.restart()
+	elif event.type == pygame.MOUSEBUTTONDOWN:
+		if event.button == 1:
+			pygame_manager._handle_mouse_click_or_drag(engine)
+			pygame_manager.mouse_dragging = True
+	elif event.type == pygame.MOUSEBUTTONUP:
+		if event.button == 1:
+			pygame_manager.mouse_dragging = False
+			pygame_manager.last_selected_cell = None
+	elif event.type == pygame.MOUSEMOTION:
+		if pygame_manager.mouse_dragging:
+			pygame_manager._handle_mouse_click_or_drag(engine)

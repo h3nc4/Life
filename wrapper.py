@@ -9,8 +9,8 @@ import numpy
 class GameEngine:
 	def __init__(self, width, height):
 		self.ENGINE = CDLL("./engine.dll" if system() == "Windows" else "./engine.so")
-		self.WIDTH = width
-		self.HEIGHT = height
+		WIDTH = width
+		HEIGHT = height
 
 		# Define argument and return types for the C functions
 		self.ENGINE.initialize_game.argtypes = [c_uint, c_uint]
@@ -29,17 +29,19 @@ class GameEngine:
 		self.ENGINE.restart_game.restype = None
 
 		# Initialize the game engine
-		self.ENGINE.initialize_game(self.WIDTH, self.HEIGHT)
+		self.ENGINE.initialize_game(WIDTH, HEIGHT)
 
 		# Get pointers to the grids
-		self.GRIDS = cast(self.ENGINE.ptr_to_both_grids(), POINTER(POINTER(c_ubyte * (self.WIDTH * self.HEIGHT)))).contents
-		self.GAME_MATRIX1 = numpy.array(self.GRIDS[1], copy=False).reshape(self.WIDTH, self.HEIGHT)
-		self.GAME_MATRIX2 = numpy.array(self.GRIDS[0], copy=False).reshape(self.WIDTH, self.HEIGHT)
+		GRIDS = cast(self.ENGINE.ptr_to_both_grids(), POINTER(POINTER(c_ubyte * (WIDTH * HEIGHT)))).contents
+		self.GAME_MATRIX = numpy.array(GRIDS[1], copy=False).reshape(WIDTH, HEIGHT)
+		self.GAME_MATRIX_NEXT = numpy.array(GRIDS[0], copy=False).reshape(WIDTH, HEIGHT)
+		self.current_grid_index = 1
 
 
 	def update(self):
 		"""Updates the grid with the new generation."""
 		self.ENGINE.update_grid()
+		self.current_grid_index ^= 1
 
 
 	def toggle_cell(self, x, y):
@@ -55,11 +57,12 @@ class GameEngine:
 	def restart(self):
 		"""Restart the game."""
 		self.ENGINE.restart_game()
+		self.current_grid_index = 1
 
 
-	def get_grids(self):
-		"""Get the current and previous grids as numpy arrays."""
-		return self.GAME_MATRIX1, self.GAME_MATRIX2
+	def get_current_grid(self):
+		"""Get the current active grid as a numpy array."""
+		return self.GAME_MATRIX if self.current_grid_index == 1 else self.GAME_MATRIX_NEXT
 
 
 	def free_grid(self):

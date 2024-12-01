@@ -12,8 +12,7 @@ import time
 # Initialize the game engine and Pygame manager
 ALIVE_COLOR, DEAD_COLOR, CELL_SIZE = parse_args()
 ENGINE = GameEngine(1920 // CELL_SIZE, 1080 // CELL_SIZE)
-MANAGER = PygameManager(ENGINE.WIDTH, ENGINE.HEIGHT, CELL_SIZE, ALIVE_COLOR, DEAD_COLOR)
-GAME_MATRIX, GAME_MATRIX_NEXT = ENGINE.get_grids()
+MANAGER = PygameManager(1920 // CELL_SIZE, 1080 // CELL_SIZE, CELL_SIZE, ALIVE_COLOR, DEAD_COLOR)
 
 
 def debug_print(*args, **kwargs):
@@ -33,12 +32,11 @@ try:
 		MANAGER.handle_events(ENGINE)
 		if current_time - last_update_time >= update_interval and not MANAGER.paused:
 			update_time = time.time()
-			GAME_MATRIX, GAME_MATRIX_NEXT = GAME_MATRIX_NEXT, GAME_MATRIX  # Swap the grids
 			ENGINE.update()
 			debug_print(f"Update time: {time.time() - update_time}")
 			last_update_time = current_time
 		draw_grid_time = time.time()
-		MANAGER.draw_grid(GAME_MATRIX)
+		MANAGER.draw_grid(ENGINE.get_current_grid())
 		display_time = time.time()
 		debug_print(f"Draw grid time: {display_time - draw_grid_time}")
 		MANAGER.update_display()
