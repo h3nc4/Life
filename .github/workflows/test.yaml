@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - main
-    
 
 jobs:
-  acceptancef:
+  acceptance:
     runs-on: ubuntu-latest
     container:
       image: python:3-slim
@@ -15,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy bc
           pip install --upgrade pip
@@ -33,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get upgrade -y --no-install-recommends gcc libc-dev
       - name: Test
@@ -47,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy
           pip install --upgrade pip

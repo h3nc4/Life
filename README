@@ -42,13 +42,11 @@ make
 
 To run a development build
 
-./rundev
+dev/run
 
 The above will create a virtual environment, install the dependencies, compile shared libraries and run the game.
 
-Install the following dependencies to run automated tests
-
-xvfb bc
+The DevContainer contains all the necessary tools to build, test and run the game.
 
 About Conway's Game of Life
 ---------------------------

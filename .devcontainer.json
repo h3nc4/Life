@@ -1,7 +1,12 @@
 {
 	"name": "Life Dev Container",
 	"dockerFile": "dev/Dockerfile",
-	"mounts": ["type=bind,source=${localEnv:HOME},target=/home/dev"],
+	"mounts": [
+		"type=bind,source=${localEnv:HOME},target=/home/dev",
+		"type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix",
+		"type=bind,source=/run/user/1000/Xauthority,target=/run/user/1000/Xauthority"
+	],
+	"runArgs": ["--net=host"],
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
 	"workspaceFolder": "/workdir",
 	"customizations": {
@@ -14,7 +19,12 @@
 				"ms-vscode.cpptools-extension-pack",
 				"ms-python.python",
 				"timonwong.shellcheck"
-			]
+			],
+			"settings": {
+				"terminal.integrated.env.linux": {
+					"DISPLAY": "${localEnv:DISPLAY}"
+				}
+			}
 		}
 	}
 }
