@@ -1,7 +1,37 @@
 /* See LICENSE file for copyright and license details.
  * Copyright (C) 2023-2024  Henrique Almeida <me@h3nc4.com> */
 
-#include "engine.h"
+#define CELL_SIZE 10  // Size of each cell in pixels
+#define UPDATE_FPS 10 // Frames per second for grid update
+#define FPS 60		  // Frames per second for rendering
+
+#include <X11/Xatom.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <unistd.h>
+#ifdef _WIN32
+#include <malloc.h>
+#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#endif
+
+static bool mouse_pressed = false;
+
+// Type definitions
+typedef uint8_t u8int;
+
+typedef struct
+{
+	u8int grid_state;	 // Current grid state (0 or 1)
+	unsigned int width;	 // Grid width
+	unsigned int height; // Grid height
+	unsigned int size;	 // Total grid size (width * height)
+} rules;
 
 // Global grid and its pointers
 static u8int *grid = NULL;
@@ -11,6 +41,11 @@ static u8int *prev_grid = NULL;
 static unsigned int *row_offsets = NULL;
 
 static rules game;
+
+static bool running = true;
+
+static int last_triggered_x = -1;
+static int last_triggered_y = -1;
 
 // Macros for index calculation and neighbor counting
 #define PREV_Y(y) (((y) - 1 + game.height) % game.height)
@@ -31,7 +66,7 @@ static rules game;
 // Otherwise, it dies.
 #define IS_ALIVE(living_neighbors, cell) ((living_neighbors == 3) | (cell & (living_neighbors == 2)))
 
-void free_grid()
+static void free_grid()
 {
 	free(grid);
 	free(row_offsets);
@@ -62,7 +97,7 @@ static void init_grid()
 		row_offsets[y] = y * game.width;
 }
 
-void update_grid()
+static void update_grid()
 {
 	current_grid = grid + game.size * game.grid_state;
 	prev_grid = grid + game.size * (game.grid_state ^ 1);
@@ -72,37 +107,172 @@ void update_grid()
 	game.grid_state ^= 1;
 }
 
-void initialize_game(unsigned int w, unsigned int h)
+static void initialize_game(unsigned int w, unsigned int h)
 {
 	if (grid)
 		free_grid();
-	// Width and height are swapped to optimize cache access
-	game.width = h;
-	game.height = w;
+	game.width = w;
+	game.height = h;
 	game.size = game.width * game.height;
 	allocate_grid();
 	init_grid();
 }
 
-u8int **ptr_to_both_grids()
-{
-	static u8int *ptrs[2];
-	ptrs[0] = current_grid;
-	ptrs[1] = prev_grid;
-	return ptrs;
-}
-
-void clear_grid()
+static void clear_grid()
 {
 	memset(grid, 0, 2 * game.size * sizeof(u8int));
 }
 
-void restart_game()
+static void restart_game()
 {
 	init_grid();
 }
 
-void toggle_cell_state(unsigned int y, unsigned int x)
+static void toggle_cell_state(unsigned int y, unsigned int x)
 {
 	current_grid[row_offsets[y] + x] ^= 1; // Toggle between 0 and 1
+}
+
+static void draw_grid(Display *display, Pixmap pixmap, GC gc)
+{
+	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
+	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
+	XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
+	for (unsigned int y = 0; y < game.height; y++)
+		for (unsigned int x = 0; x < game.width; x++)
+			if (current_grid[row_offsets[y] + x])
+				XFillRectangle(display, pixmap, gc, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+}
+
+static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
+{
+	XEvent event;
+	bool paused = false;
+	const unsigned int render_interval = 1000000 / FPS;
+	const unsigned int update_interval = 1000000 / UPDATE_FPS;
+	unsigned long long last_render_time = 0;
+	unsigned long long last_update_time = 0;
+	struct timespec current_time;
+
+	while (running)
+	{
+		clock_gettime(CLOCK_MONOTONIC, &current_time);
+		unsigned long long now = current_time.tv_sec * 1000000LL + current_time.tv_nsec / 1000;
+		while (XPending(display))
+		{
+			XNextEvent(display, &event);
+			if (event.type == Expose)
+				XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+			else if (event.type == KeyPress)
+			{
+				KeySym key = XLookupKeysym(&event.xkey, 0);
+				switch (key)
+				{
+				case XK_q: // Quit
+					running = false;
+					break;
+				case XK_space: // Pause
+					paused = !paused;
+					break;
+				case XK_r: // Restart
+					restart_game();
+					break;
+				case XK_c: // Clear
+					clear_grid();
+					break;
+				}
+			}
+			else if (event.type == ButtonPress)
+			{
+				mouse_pressed = true;
+				unsigned int x = event.xbutton.x / CELL_SIZE;
+				unsigned int y = event.xbutton.y / CELL_SIZE;
+				if (x < game.width && y < game.height)
+					toggle_cell_state(y, x);
+			}
+			else if (event.type == ButtonRelease)
+			{
+				mouse_pressed = false;
+				last_triggered_x = -1;
+				last_triggered_y = -1;
+			}
+			else if (event.type == MotionNotify && mouse_pressed)
+			{
+				unsigned int x = event.xmotion.x / CELL_SIZE;
+				unsigned int y = event.xmotion.y / CELL_SIZE;
+				if (x < game.width && y < game.height && (x != last_triggered_x || y != last_triggered_y))
+				{
+					toggle_cell_state(y, x);
+					last_triggered_x = x;
+					last_triggered_y = y;
+				}
+			}
+		}
+		if (!paused && now - last_update_time >= update_interval)
+		{
+			update_grid();
+			last_update_time = now;
+		}
+		if (now - last_render_time >= render_interval)
+		{
+			draw_grid(display, pixmap, gc);
+			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+			last_render_time = now;
+		}
+		usleep(1000); // Sleep for 1 ms to avoid busy waiting
+	}
+}
+
+static void set_fullscreen(Display *display, Window window)
+{
+	Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+	Atom fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+	XEvent xev = {0};
+	xev.xclient.type = ClientMessage;
+	xev.xclient.window = window;
+	xev.xclient.message_type = wm_state;
+	xev.xclient.format = 32;
+	xev.xclient.data.l[0] = 1; // 1 for adding, 0 for removing
+	xev.xclient.data.l[1] = fullscreen;
+	xev.xclient.data.l[2] = 0;
+	XSendEvent(display, DefaultRootWindow(display), False,
+			   SubstructureNotifyMask | SubstructureRedirectMask, &xev);
+}
+
+static Display *get_display()
+{
+	Display *display = XOpenDisplay(NULL);
+	if (!display)
+	{
+		fprintf(stderr, "Error: Unable to open X display.\n");
+		exit(EXIT_FAILURE);
+	}
+	return display;
+}
+
+int main()
+{
+	Display *display = get_display();
+	int screen = DefaultScreen(display);
+	unsigned int screen_width = DisplayWidth(display, screen);
+	unsigned int screen_height = DisplayHeight(display, screen);
+	initialize_game(screen_width / CELL_SIZE, screen_height / CELL_SIZE);
+	unsigned int window_width = screen_width;
+	unsigned int window_height = screen_height;
+	Window window = XCreateSimpleWindow(display, RootWindow(display, screen),
+										0, 0, window_width, window_height,
+										1, WhitePixel(display, screen), BlackPixel(display, screen));
+	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+	XMapWindow(display, window);
+	set_fullscreen(display, window);
+	Pixmap pixmap = XCreatePixmap(display, window, window_width, window_height, DefaultDepth(display, screen));
+	GC gc = XCreateGC(display, window, 0, NULL);
+	XSetForeground(display, gc, WhitePixel(display, screen));
+	game_loop(display, window, gc, pixmap);
+	XFreePixmap(display, pixmap);
+	XFreeGC(display, gc);
+	XDestroyWindow(display, window);
+	XCloseDisplay(display);
+	free_grid();
+	return EXIT_SUCCESS;
 }
