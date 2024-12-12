@@ -23,9 +23,6 @@ RUN apt-get update && \
 	libx11-dev \
 	make \
 	nano \
-	python3 \
-	python3-venv \
-	python3-dev \
 	ssh-client \
 	wget \
 	xvfb \

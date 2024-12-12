@@ -17,7 +17,6 @@
 				"donjayamanne.githistory",
 				"eamodio.gitlens",
 				"ms-vscode.cpptools-extension-pack",
-				"ms-python.python",
 				"timonwong.shellcheck"
 			],
 			"settings": {
