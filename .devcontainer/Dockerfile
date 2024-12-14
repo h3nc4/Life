@@ -7,8 +7,9 @@ RUN apt-get update && \
 	locale-gen en_US.UTF-8 && \
 	update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && \
 	\
-	apt-get upgrade -y --no-install-recommends \
+	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
 	bash-completion \
+	bc \
 	ca-certificates \
 	curl \
 	doas \
@@ -25,8 +26,8 @@ RUN apt-get update && \
 	nano \
 	ssh-client \
 	wget \
-	xvfb \
-	xserver-xorg-video-dummy && \
+	xserver-xorg-video-dummy \
+	xvfb && \
 	\
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

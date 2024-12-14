@@ -1,13 +1,5 @@
 #!/bin/sh
 set -e
 
-[ -d .venv ] || {
-	python3 -m venv .venv
-	. .venv/bin/activate
-	pip install -U pip wheel setuptools
-	pip install -U pygame numpy pyinstaller
-}
-. .venv/bin/activate
-
-cc -g -shared -o ./engine.so -fPIC -fopenmp ./engine.c
-DEBUG=1 python3 ./ui.py "$@"
+cc -g -o ./life -fPIC -fopenmp ./engine.c -lX11
+./life
