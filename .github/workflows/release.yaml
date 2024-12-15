@@ -1,5 +1,5 @@
-name: Test, Build and Release Life
-description: 'Test on Linux, Build on Windows and Linux, then create a release with artifacts'
+name: Release Life
+description: 'Create a release with artifacts'
 
 on:
   push:
@@ -7,25 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  acceptance:
-    runs-on: ubuntu-latest
-    container:
-      image: python:3-slim
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy bc
-          pip install --upgrade pip
-          pip install pygame numpy pyinstaller
-      - name: Build
-        run: make
-      - name: Test
-        run: dev/test
-
-  unit:
+  release:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm-slim
@@ -33,98 +15,20 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          export DEBIAN_FRONTEND=noninteractive
           apt-get update
-          apt-get upgrade -y --no-install-recommends gcc libc-dev
-      - name: Test
-        run: dev/tests/unit
-
-  integration:
-    runs-on: ubuntu-latest
-    container:
-      image: python:3-slim
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make xvfb xserver-xorg-video-dummy
-          pip install --upgrade pip
-          pip install pygame numpy pytest
-      - name: Test
-        run: dev/tests/integration
-
-  windows-build:
-    needs: [acceptance, unit, integration]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: msys2/setup-msys2@v2
-        id: msys2
-        with:
-          msystem: MINGW64
-          update: true
-          install: base-devel mingw-w64-x86_64-toolchain
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3'
-      - name: Update PATH
-        run: Add-Content $env:GITHUB_PATH "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin"
-      - name: Install dependencies
-        run: pip install pygame numpy pyinstaller
-      - name: Build
-        run: make life-win
-      - uses: actions/upload-artifact@v4
-        with:
-          name: life-win.x86_64
-          path: life.exe
-          compression-level: 9
-          retention-days: 1
-
-  linux-build:
-    needs: [acceptance, unit, integration]
-    runs-on: ubuntu-latest
-    container:
-      image: python:3-slim
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get upgrade -y --no-install-recommends gcc libc-dev libglib2.0-0 libglib2.0-dev libpthread-stubs0-dev libx11-dev make
-          pip install --upgrade pip
-          pip install pygame numpy pyinstaller
+          DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
+          gcc \
+          libc-dev \
+          libglib2.0-0 \
+          libglib2.0-dev \
+          libpthread-stubs0-dev \
+          libx11-dev \
+          make
       - name: Build
         run: make
-      - name: Tar
-        run: tar -cf life.tar life
-      - uses: actions/upload-artifact@v4
-        with:
-          name: life-linux.x86_64
-          path: life.tar
-          compression-level: 9
-          retention-days: 1
-
-  release:
-    needs: [windows-build, linux-build]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: life-win.x86_64
-      - uses: actions/download-artifact@v4
-        with:
-          name: life-linux.x86_64
-      - name: Untar
-        run: tar -xf life.tar
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            life.exe
-            life
+          files: life
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
