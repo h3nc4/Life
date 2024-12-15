@@ -1,7 +1,7 @@
 Conway's Game of Life
 ---------------------
 
-This is a simple implementation of Conway's Game of Life in C using Pygame for the GUI.
+This is a simple implementation of Conway's Game of Life in C.
 
 Features
 --------
@@ -9,11 +9,9 @@ Features
 - Pause and resume the simulation with space
 - Draw cells on the board with your mouse
 - Clear the board with c
-- Start a new simulation with n
-- Change colors of the cells with arguments
+- Start a new simulation with r
+- Quit with q
 - Change cell size with arguments
-
-check --help for more information
 
 Running
 -------
@@ -23,10 +21,6 @@ No dependencies are needed for runtime. You can run it with the following:
 wget "https://github.com/h3nc4/Life/releases/latest/download/life"
 chmod +x life
 ./life
-
-Download the windows version from the releases page at
-
-https://github.com/h3nc4/Life/releases/latest/download/life.exe
 
 Building
 --------
@@ -40,11 +34,11 @@ To compile a release build
 
 make
 
-To run a development build
+To run a debugging build
 
 dev/run
 
-The above will create a virtual environment, install the dependencies, compile shared libraries and run the game.
+The above will compile and run the game.
 
 The DevContainer contains all the necessary tools to build, test and run the game.
 

@@ -1,7 +1,6 @@
 /* See LICENSE file for copyright and license details.
  * Copyright (C) 2023-2024  Henrique Almeida <me@h3nc4.com> */
 
-#define CELL_SIZE 10  // Size of each cell in pixels
 #define UPDATE_FPS 10 // Frames per second for grid update
 #define FPS 60		  // Frames per second for rendering
 
@@ -20,6 +19,7 @@
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
 #endif
 
+static unsigned int CELL_SIZE = 10; // Default size of each cell in pixels
 static bool mouse_pressed = false;
 
 // Type definitions
@@ -250,22 +250,29 @@ static Display *get_display()
 	return display;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+	if (argc == 2)
+	{
+		CELL_SIZE = atoi(argv[1]);
+		if (CELL_SIZE <= 0)
+		{
+			fprintf(stderr, "Error: Cell size must be positive.\n");
+			return EXIT_FAILURE;
+		}
+	}
 	Display *display = get_display();
 	int screen = DefaultScreen(display);
 	unsigned int screen_width = DisplayWidth(display, screen);
 	unsigned int screen_height = DisplayHeight(display, screen);
 	initialize_game(screen_width / CELL_SIZE, screen_height / CELL_SIZE);
-	unsigned int window_width = screen_width;
-	unsigned int window_height = screen_height;
 	Window window = XCreateSimpleWindow(display, RootWindow(display, screen),
-										0, 0, window_width, window_height,
+										0, 0, screen_width, screen_height,
 										1, WhitePixel(display, screen), BlackPixel(display, screen));
 	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 	XMapWindow(display, window);
 	set_fullscreen(display, window);
-	Pixmap pixmap = XCreatePixmap(display, window, window_width, window_height, DefaultDepth(display, screen));
+	Pixmap pixmap = XCreatePixmap(display, window, screen_width, screen_height, DefaultDepth(display, screen));
 	GC gc = XCreateGC(display, window, 0, NULL);
 	XSetForeground(display, gc, WhitePixel(display, screen));
 	game_loop(display, window, gc, pixmap);
