@@ -47,6 +47,11 @@ static bool running = true;
 static int last_triggered_x = -1;
 static int last_triggered_y = -1;
 
+#ifdef DEBUG_FPS_LOGGING
+unsigned int frame_count = 0;
+unsigned long long fps_timer_start = 0;
+#endif
+
 // Macros for index calculation and neighbor counting
 #define PREV_Y(y) (((y) - 1 + game.height) % game.height)
 #define NEXT_Y(y) (((y) + 1) % game.height)
@@ -154,6 +159,12 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 	unsigned long long last_update_time = 0;
 	struct timespec current_time;
 
+#ifdef DEBUG_FPS_LOGGING
+	struct timespec start_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	fps_timer_start = start_time.tv_sec;
+#endif
+
 	while (running)
 	{
 		clock_gettime(CLOCK_MONOTONIC, &current_time);
@@ -217,6 +228,18 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 		{
 			draw_grid(display, pixmap, gc);
 			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+
+#ifdef DEBUG_FPS_LOGGING
+			// Debug FPS
+			frame_count++;
+			if (now / 1000000LL - fps_timer_start >= 1)
+			{
+				printf("FPS: %u\n", frame_count);
+				frame_count = 0;
+				fps_timer_start = now / 1000000LL;
+			}
+#endif
+
 			last_render_time = now;
 		}
 		usleep(1000); // Sleep for 1 ms to avoid busy waiting
@@ -241,7 +264,7 @@ static void set_fullscreen(Display *display, Window window)
 
 static Display *get_display()
 {
-	Display *display = XOpenDisplay(NULL);
+	Display *display = XOpenDisplay(getenv("DISPLAY"));
 	if (!display)
 	{
 		fprintf(stderr, "Error: Unable to open X display.\n");

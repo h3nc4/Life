@@ -1,5 +1,5 @@
 #!/bin/sh
 set -e
 
-cc -g -o ./life -fPIC -fopenmp ./engine.c -lX11
+cc -g -o ./life -DDEBUG_FPS_LOGGING -fPIC -fopenmp ./engine.c -lX11
 ./life
