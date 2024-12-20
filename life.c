@@ -4,8 +4,6 @@
 #define UPDATE_FPS 10 // Frames per second for grid update
 #define FPS 60		  // Frames per second for rendering
 
-#include <X11/Xatom.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,10 +12,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#ifdef _WIN32
-#include <malloc.h>
-#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#endif
 
 static unsigned int CELL_SIZE = 10; // Default size of each cell in pixels
 static bool mouse_pressed = false;
@@ -106,7 +100,7 @@ static void update_grid()
 {
 	current_grid = grid + game.size * game.grid_state;
 	prev_grid = grid + game.size * (game.grid_state ^ 1);
-#pragma omp parallel for schedule(static) // Parallelize loop
+#pragma omp parallel for schedule(guided) // Parallelize loop
 	for (unsigned int idx = 0; idx < game.size; idx++)
 		current_grid[idx] = IS_ALIVE(COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width), prev_grid[idx]);
 	game.grid_state ^= 1;
@@ -235,7 +229,6 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
 
 #ifdef DEBUG_FPS_LOGGING
-			// Debug FPS
 			frame_count++;
 			if (now / 1000000LL - fps_timer_start >= 1)
 			{
