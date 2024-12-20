@@ -149,9 +149,63 @@ static void draw_grid(Display *display, Pixmap pixmap, GC gc)
 				XFillRectangle(display, pixmap, gc, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
 }
 
-static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
+static void handle_events(Display *display, Window window, GC gc, Pixmap pixmap, bool *paused)
 {
 	XEvent event;
+	while (XPending(display))
+	{
+		XNextEvent(display, &event);
+		if (event.type == Expose)
+			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+		else if (event.type == KeyPress)
+		{
+			KeySym key = XLookupKeysym(&event.xkey, 0);
+			switch (key)
+			{
+			case XK_q: // Quit
+				running = false;
+				break;
+			case XK_space: // Pause
+				*paused = !(*paused);
+				break;
+			case XK_r: // Restart
+				restart_game();
+				break;
+			case XK_c: // Clear
+				clear_grid();
+				break;
+			}
+		}
+		else if (event.type == ButtonPress)
+		{
+			mouse_pressed = true;
+			unsigned int x = event.xbutton.x / CELL_SIZE;
+			unsigned int y = event.xbutton.y / CELL_SIZE;
+			if (x < game.width && y < game.height)
+				toggle_cell_state(y, x);
+		}
+		else if (event.type == ButtonRelease)
+		{
+			mouse_pressed = false;
+			last_triggered_x = -1;
+			last_triggered_y = -1;
+		}
+		else if (event.type == MotionNotify && mouse_pressed)
+		{
+			unsigned int x = event.xmotion.x / CELL_SIZE;
+			unsigned int y = event.xmotion.y / CELL_SIZE;
+			if (x < game.width && y < game.height && (x != last_triggered_x || y != last_triggered_y))
+			{
+				toggle_cell_state(y, x);
+				last_triggered_x = x;
+				last_triggered_y = y;
+			}
+		}
+	}
+}
+
+static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
+{
 	bool paused = false;
 	const unsigned int render_interval = 1000000 / FPS;
 	const unsigned int update_interval = 1000000 / UPDATE_FPS;
@@ -169,56 +223,7 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 	{
 		clock_gettime(CLOCK_MONOTONIC, &current_time);
 		unsigned long long now = current_time.tv_sec * 1000000LL + current_time.tv_nsec / 1000;
-		while (XPending(display))
-		{
-			XNextEvent(display, &event);
-			if (event.type == Expose)
-				XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
-			else if (event.type == KeyPress)
-			{
-				KeySym key = XLookupKeysym(&event.xkey, 0);
-				switch (key)
-				{
-				case XK_q: // Quit
-					running = false;
-					break;
-				case XK_space: // Pause
-					paused = !paused;
-					break;
-				case XK_r: // Restart
-					restart_game();
-					break;
-				case XK_c: // Clear
-					clear_grid();
-					break;
-				}
-			}
-			else if (event.type == ButtonPress)
-			{
-				mouse_pressed = true;
-				unsigned int x = event.xbutton.x / CELL_SIZE;
-				unsigned int y = event.xbutton.y / CELL_SIZE;
-				if (x < game.width && y < game.height)
-					toggle_cell_state(y, x);
-			}
-			else if (event.type == ButtonRelease)
-			{
-				mouse_pressed = false;
-				last_triggered_x = -1;
-				last_triggered_y = -1;
-			}
-			else if (event.type == MotionNotify && mouse_pressed)
-			{
-				unsigned int x = event.xmotion.x / CELL_SIZE;
-				unsigned int y = event.xmotion.y / CELL_SIZE;
-				if (x < game.width && y < game.height && (x != last_triggered_x || y != last_triggered_y))
-				{
-					toggle_cell_state(y, x);
-					last_triggered_x = x;
-					last_triggered_y = y;
-				}
-			}
-		}
+		handle_events(display, window, gc, pixmap, &paused);
 		if (!paused && now - last_update_time >= update_interval)
 		{
 			update_grid();
