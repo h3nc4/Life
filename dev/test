@@ -32,11 +32,12 @@ for RES in $RESOLUTIONS; do
 	echo "Testing resolution: $RES" | tee -a "$LOG_FILE"
 	Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" &
 	XVFB_PID=$!
+	sleep 1
 
 	while read -r FPS; do # Run life with a timeout and read FPS values
 		FPS_TOTAL=$(echo "$FPS_TOTAL + $FPS" | bc)
 		FPS_COUNT=$((FPS_COUNT + 1))
-	done < <(timeout "$TIMEOUT" ./life 2>&1 | tee -a "$LOG_FILE" | grep "FPS:" | awk '{print $2}')
+	done < <(timeout "$TIMEOUT" ./life 1 2>&1 | tee -a "$LOG_FILE" | grep "FPS:" | awk '{print $2}')
 
 	kill "$XVFB_PID" 2>/dev/null # Kill Xvfb
 

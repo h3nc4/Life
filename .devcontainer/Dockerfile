@@ -2,8 +2,8 @@ FROM debian:bookworm
 
 # Install and set up locales for C, install C development tools and other useful packages
 RUN apt-get update && \
-	apt-get install -y --no-install-recommends locales && \
-	echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends locales && \
+	echo "en_US.UTF-8 UTF-8" >/etc/locale.gen && \
 	locale-gen en_US.UTF-8 && \
 	update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && \
 	\
@@ -18,15 +18,11 @@ RUN apt-get update && \
 	gnupg \
 	less \
 	libc-dev \
-	libglib2.0-0 \
-	libglib2.0-dev \
-	libpthread-stubs0-dev \
 	libx11-dev \
 	make \
 	nano \
 	ssh-client \
 	wget \
-	xserver-xorg-video-dummy \
 	xvfb && \
 	\
 	apt-get clean && \

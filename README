@@ -1,7 +1,7 @@
 Conway's Game of Life
 ---------------------
 
-This is a simple implementation of Conway's Game of Life in C.
+This is a simple implementation of Conway's Game of Life in C for Xorg.
 
 Features
 --------
@@ -18,17 +18,16 @@ Running
 
 No dependencies are needed for runtime. You can run it with the following:
 
-wget "https://github.com/h3nc4/Life/releases/latest/download/life"
+wget -q "https://github.com/h3nc4/Life/releases/latest/download/life"
 chmod +x life
 ./life
 
 Building
 --------
 
-- Python 3
-- Virtualenv
 - Make
 - GCC
+- libX11
 
 To compile a release build
 

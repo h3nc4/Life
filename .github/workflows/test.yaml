@@ -16,17 +16,13 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
-          bc \
-          gcc \
-          libc-dev \
-          libglib2.0-0 \
-          libglib2.0-dev \
-          libpthread-stubs0-dev \
-          libx11-dev \
-          make \
-          xserver-xorg-video-dummy \
-          xvfb
+            bc \
+            gcc \
+            libc-dev \
+            libx11-dev \
+            make \
+            xvfb
       - name: Build
-        run: make
+        run: make DEBUG_FLAGS=-DDEBUG_FPS_LOGGING
       - name: Test
         run: dev/test

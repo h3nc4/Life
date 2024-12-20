@@ -234,7 +234,7 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 			frame_count++;
 			if (now / 1000000LL - fps_timer_start >= 1)
 			{
-				printf("FPS: %u\n", frame_count);
+				fprintf(stdout, "FPS: %u\n", frame_count);
 				frame_count = 0;
 				fps_timer_start = now / 1000000LL;
 			}
@@ -275,6 +275,9 @@ static Display *get_display()
 
 int main(int argc, char *argv[])
 {
+#ifdef DEBUG_FPS_LOGGING
+	setbuf(stdout, NULL);
+#endif
 	if (argc == 2)
 	{
 		CELL_SIZE = atoi(argv[1]);
