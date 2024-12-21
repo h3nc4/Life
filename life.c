@@ -51,11 +51,14 @@ static Display *display = NULL;
 static Window window;
 static Pixmap pixmap;
 static GC gc;
+static XRectangle *rectangles = NULL;
 
 #ifdef DEBUG_FPS_LOGGING
 unsigned int frame_count = 0;
 unsigned long long fps_timer_start = 0;
 #endif
+
+#define MAX_RECTANGLES_PER_BATCH 100000
 
 // Macros for index calculation and neighbor counting
 #define PREV_Y(y) (((y) - 1 + game.height) % game.height)
@@ -80,6 +83,7 @@ static void free_grid()
 {
 	free(grid);
 	free(row_offsets);
+	free(rectangles);
 }
 
 // Aligned allocation for SIMD
@@ -90,6 +94,12 @@ static void allocate_grid()
 	if (!grid || !row_offsets)
 	{
 		fprintf(stderr, "Error: Failed to allocate memory.\n");
+		exit(EXIT_FAILURE);
+	}
+	rectangles = malloc(game.size * sizeof(XRectangle));
+	if (rectangles == NULL)
+	{
+		fprintf(stderr, "Error: Failed to allocate memory for rectangles.\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -155,9 +165,23 @@ static void draw_grid()
 	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
 	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
 	XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
+	int rect_count = 0;
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
-			XFillRectangle(display, pixmap, gc, (i % game.width) * CELL_SIZE, (i / game.width) * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+		{
+			rectangles[rect_count].x = (i % game.width) * CELL_SIZE;
+			rectangles[rect_count].y = (i / game.width) * CELL_SIZE;
+			rectangles[rect_count].width = CELL_SIZE;
+			rectangles[rect_count].height = CELL_SIZE;
+			rect_count++;
+			if (rect_count >= MAX_RECTANGLES_PER_BATCH)
+			{
+				XFillRectangles(display, pixmap, gc, rectangles, rect_count);
+				rect_count = 0;
+			}
+		}
+	if (rect_count > 0)
+		XFillRectangles(display, pixmap, gc, rectangles, rect_count);
 }
 
 static void handle_key_press(KeySym key)
