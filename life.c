@@ -134,9 +134,16 @@ static void restart_game()
 	init_grid();
 }
 
-static void toggle_cell_state(unsigned int y, unsigned int x)
+static int toggle_cell_state(unsigned int y, unsigned int x)
 {
+	if (y >= game.height || x >= game.width)
+		return 1;
+	if (last_triggered_x == x && last_triggered_y == y)
+		return 0;
 	current_grid[row_offsets[y] + x] ^= 1; // Toggle between 0 and 1
+	last_triggered_x = x;
+	last_triggered_y = y;
+	return 0;
 }
 
 static void draw_grid()
@@ -182,27 +189,15 @@ static void handle_events()
 		else if (event.type == ButtonPress)
 		{
 			mouse_pressed = true;
-			unsigned int x = event.xbutton.x / CELL_SIZE;
-			unsigned int y = event.xbutton.y / CELL_SIZE;
-			if (x < game.width && y < game.height)
-				toggle_cell_state(y, x);
+			toggle_cell_state(event.xbutton.y / CELL_SIZE, event.xbutton.x / CELL_SIZE);
 		}
+		else if (event.type == MotionNotify && mouse_pressed)
+			toggle_cell_state(event.xmotion.y / CELL_SIZE, event.xmotion.x / CELL_SIZE);
 		else if (event.type == ButtonRelease)
 		{
 			mouse_pressed = false;
 			last_triggered_x = -1;
 			last_triggered_y = -1;
-		}
-		else if (event.type == MotionNotify && mouse_pressed)
-		{
-			unsigned int x = event.xmotion.x / CELL_SIZE;
-			unsigned int y = event.xmotion.y / CELL_SIZE;
-			if (x < game.width && y < game.height && (x != last_triggered_x || y != last_triggered_y))
-			{
-				toggle_cell_state(y, x);
-				last_triggered_x = x;
-				last_triggered_y = y;
-			}
 		}
 	}
 }
