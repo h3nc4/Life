@@ -155,10 +155,9 @@ static void draw_grid()
 	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
 	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
 	XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
-	for (unsigned int y = 0; y < game.height; y++)
-		for (unsigned int x = 0; x < game.width; x++)
-			if (current_grid[row_offsets[y] + x])
-				XFillRectangle(display, pixmap, gc, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+	for (unsigned int i = 0; i < game.size; i++)
+		if (current_grid[i])
+			XFillRectangle(display, pixmap, gc, (i % game.width) * CELL_SIZE, (i / game.width) * CELL_SIZE, CELL_SIZE, CELL_SIZE);
 }
 
 static void handle_key_press(KeySym key)
@@ -277,9 +276,7 @@ static void initialize_x11()
 	int screen = DefaultScreen(display);
 	unsigned int screen_width = DisplayWidth(display, screen);
 	unsigned int screen_height = DisplayHeight(display, screen);
-	window = XCreateSimpleWindow(display, RootWindow(display, screen),
-								 0, 0, screen_width, screen_height,
-								 1, WhitePixel(display, screen), BlackPixel(display, screen));
+	window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, screen_width, screen_height, 1, WhitePixel(display, screen), BlackPixel(display, screen));
 	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 	XMapWindow(display, window);
 	set_fullscreen();

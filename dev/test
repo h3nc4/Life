@@ -30,7 +30,7 @@ for RES in $RESOLUTIONS; do
 
 	# Start Xvfb with the specified resolution
 	echo "Testing resolution: $RES" | tee -a "$LOG_FILE"
-	Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" &
+	Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" 2>/dev/null &
 	XVFB_PID=$!
 	sleep 1
 
