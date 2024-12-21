@@ -37,9 +37,16 @@ static unsigned int *row_offsets = NULL;
 static rules game;
 
 static bool running = true;
+static bool paused = false;
 
 static int last_triggered_x = -1;
 static int last_triggered_y = -1;
+
+// Global X11 variables
+static Display *display = NULL;
+static Window window;
+static Pixmap pixmap;
+static GC gc;
 
 #ifdef DEBUG_FPS_LOGGING
 unsigned int frame_count = 0;
@@ -132,7 +139,7 @@ static void toggle_cell_state(unsigned int y, unsigned int x)
 	current_grid[row_offsets[y] + x] ^= 1; // Toggle between 0 and 1
 }
 
-static void draw_grid(Display *display, Pixmap pixmap, GC gc)
+static void draw_grid()
 {
 	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
 	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
@@ -143,7 +150,7 @@ static void draw_grid(Display *display, Pixmap pixmap, GC gc)
 				XFillRectangle(display, pixmap, gc, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
 }
 
-static void handle_events(Display *display, Window window, GC gc, Pixmap pixmap, bool *paused)
+static void handle_events()
 {
 	XEvent event;
 	while (XPending(display))
@@ -160,7 +167,7 @@ static void handle_events(Display *display, Window window, GC gc, Pixmap pixmap,
 				running = false;
 				break;
 			case XK_space: // Pause
-				*paused = !(*paused);
+				paused = !paused;
 				break;
 			case XK_r: // Restart
 				restart_game();
@@ -198,9 +205,8 @@ static void handle_events(Display *display, Window window, GC gc, Pixmap pixmap,
 	}
 }
 
-static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
+static void start_game()
 {
-	bool paused = false;
 	const unsigned int render_interval = 1000000 / FPS;
 	const unsigned int update_interval = 1000000 / UPDATE_FPS;
 	unsigned long long last_render_time = 0;
@@ -217,7 +223,7 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 	{
 		clock_gettime(CLOCK_MONOTONIC, &current_time);
 		unsigned long long now = current_time.tv_sec * 1000000LL + current_time.tv_nsec / 1000;
-		handle_events(display, window, gc, pixmap, &paused);
+		handle_events();
 		if (!paused && now - last_update_time >= update_interval)
 		{
 			update_grid();
@@ -225,7 +231,7 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 		}
 		if (now - last_render_time >= render_interval)
 		{
-			draw_grid(display, pixmap, gc);
+			draw_grid();
 			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
 
 #ifdef DEBUG_FPS_LOGGING
@@ -244,31 +250,49 @@ static void game_loop(Display *display, Window window, GC gc, Pixmap pixmap)
 	}
 }
 
-static void set_fullscreen(Display *display, Window window)
+static void set_fullscreen()
 {
 	Atom wm_state = XInternAtom(display, "_NET_WM_STATE", False);
 	Atom fullscreen = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
 	XEvent xev = {0};
 	xev.xclient.type = ClientMessage;
-	xev.xclient.window = window;
-	xev.xclient.message_type = wm_state;
-	xev.xclient.format = 32;
-	xev.xclient.data.l[0] = 1; // 1 for adding, 0 for removing
-	xev.xclient.data.l[1] = fullscreen;
-	xev.xclient.data.l[2] = 0;
-	XSendEvent(display, DefaultRootWindow(display), False,
-			   SubstructureNotifyMask | SubstructureRedirectMask, &xev);
+	xev.xclient.window = window;		 // Set the window this message applies to
+	xev.xclient.message_type = wm_state; // Set the message type to the "_NET_WM_STATE" atom
+	xev.xclient.format = 32;			 // Set the data format to 32-bit
+	xev.xclient.data.l[0] = 1;			 // Add the fullscreen state
+	xev.xclient.data.l[1] = fullscreen;	 // Set the second data element to the fullscreen atom
+	xev.xclient.data.l[2] = 0;			 // Source indication is the application itself
+	XSendEvent(display, DefaultRootWindow(display), False, SubstructureNotifyMask | SubstructureRedirectMask, &xev);
 }
 
-static Display *get_display()
+static void initialize_x11()
 {
-	Display *display = XOpenDisplay(getenv("DISPLAY"));
+	display = XOpenDisplay(getenv("DISPLAY"));
 	if (!display)
 	{
 		fprintf(stderr, "Error: Unable to open X display.\n");
 		exit(EXIT_FAILURE);
 	}
-	return display;
+	int screen = DefaultScreen(display);
+	unsigned int screen_width = DisplayWidth(display, screen);
+	unsigned int screen_height = DisplayHeight(display, screen);
+	window = XCreateSimpleWindow(display, RootWindow(display, screen),
+								 0, 0, screen_width, screen_height,
+								 1, WhitePixel(display, screen), BlackPixel(display, screen));
+	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+	XMapWindow(display, window);
+	set_fullscreen();
+	pixmap = XCreatePixmap(display, window, screen_width, screen_height, DefaultDepth(display, screen));
+	gc = XCreateGC(display, window, 0, NULL);
+	XSetForeground(display, gc, WhitePixel(display, screen));
+}
+
+static void free_x11()
+{
+	XFreePixmap(display, pixmap);
+	XFreeGC(display, gc);
+	XDestroyWindow(display, window);
+	XCloseDisplay(display);
 }
 
 int main(int argc, char *argv[])
@@ -285,25 +309,10 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	}
-	Display *display = get_display();
-	int screen = DefaultScreen(display);
-	unsigned int screen_width = DisplayWidth(display, screen);
-	unsigned int screen_height = DisplayHeight(display, screen);
-	initialize_game(screen_width / CELL_SIZE, screen_height / CELL_SIZE);
-	Window window = XCreateSimpleWindow(display, RootWindow(display, screen),
-										0, 0, screen_width, screen_height,
-										1, WhitePixel(display, screen), BlackPixel(display, screen));
-	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
-	XMapWindow(display, window);
-	set_fullscreen(display, window);
-	Pixmap pixmap = XCreatePixmap(display, window, screen_width, screen_height, DefaultDepth(display, screen));
-	GC gc = XCreateGC(display, window, 0, NULL);
-	XSetForeground(display, gc, WhitePixel(display, screen));
-	game_loop(display, window, gc, pixmap);
-	XFreePixmap(display, pixmap);
-	XFreeGC(display, gc);
-	XDestroyWindow(display, window);
-	XCloseDisplay(display);
+	initialize_x11(); // Initialize X11 resources
+	initialize_game(DisplayWidth(display, DefaultScreen(display)) / CELL_SIZE, DisplayHeight(display, DefaultScreen(display)) / CELL_SIZE);
+	start_game();
+	free_x11();
 	free_grid();
 	return EXIT_SUCCESS;
 }
