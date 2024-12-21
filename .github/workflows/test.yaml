@@ -16,10 +16,10 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
-            bc \
             gcc \
             libc-dev \
             libx11-dev \
+            libxinerama-dev \
             make \
             xvfb
       - name: Build

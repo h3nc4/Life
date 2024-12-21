@@ -9,7 +9,6 @@ RUN apt-get update && \
 	\
 	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
 	bash-completion \
-	bc \
 	ca-certificates \
 	curl \
 	doas \
@@ -19,6 +18,7 @@ RUN apt-get update && \
 	less \
 	libc-dev \
 	libx11-dev \
+	libxinerama-dev \
 	make \
 	nano \
 	ssh-client \
