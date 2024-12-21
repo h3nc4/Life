@@ -5,6 +5,7 @@
 #define FPS 60		  // Frames per second for rendering
 
 #include <X11/Xutil.h>
+#include <X11/extensions/Xinerama.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -127,7 +128,7 @@ static void update_grid()
 	game.grid_state ^= 1;
 }
 
-static void initialize_game(unsigned int w, unsigned int h)
+static void init_rules(unsigned int w, unsigned int h)
 {
 	if (grid)
 		free_grid();
@@ -289,24 +290,51 @@ static void set_fullscreen()
 	XSendEvent(display, DefaultRootWindow(display), False, SubstructureNotifyMask | SubstructureRedirectMask, &xev);
 }
 
-static void initialize_x11()
+static int *get_screen_size()
 {
-	display = XOpenDisplay(getenv("DISPLAY"));
+	int screen = DefaultScreen(display);
+	static int screen_size[2];
+	XineramaScreenInfo *screen_info;
+	if (XineramaIsActive(display))
+	{
+		int screen_count;
+		screen_info = XineramaQueryScreens(display, &screen_count);
+		screen_size[0] = screen_info[0].width;
+		screen_size[1] = screen_info[0].height;
+		XFree(screen_info);
+	}
+	else
+	{
+		screen_size[0] = DisplayWidth(display, screen);
+		screen_size[1] = DisplayHeight(display, screen);
+	}
+	return screen_size;
+}
+
+static Display *get_display()
+{
+	Display *display = XOpenDisplay(getenv("DISPLAY"));
 	if (!display)
 	{
 		fprintf(stderr, "Error: Unable to open X display.\n");
 		exit(EXIT_FAILURE);
 	}
+	return display;
+}
+
+static void init_game()
+{
+	display = get_display();
+	int *screen_size = get_screen_size();
 	int screen = DefaultScreen(display);
-	unsigned int screen_width = DisplayWidth(display, screen);
-	unsigned int screen_height = DisplayHeight(display, screen);
-	window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, screen_width, screen_height, 1, WhitePixel(display, screen), BlackPixel(display, screen));
+	window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, screen_size[0], screen_size[1], 1, WhitePixel(display, screen), BlackPixel(display, screen));
 	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 	XMapWindow(display, window);
 	set_fullscreen();
-	pixmap = XCreatePixmap(display, window, screen_width, screen_height, DefaultDepth(display, screen));
+	pixmap = XCreatePixmap(display, window, screen_size[0], screen_size[1], DefaultDepth(display, screen));
 	gc = XCreateGC(display, window, 0, NULL);
 	XSetForeground(display, gc, WhitePixel(display, screen));
+	init_rules(screen_size[0] / CELL_SIZE, screen_size[1] / CELL_SIZE);
 }
 
 static void free_x11()
@@ -331,8 +359,7 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	}
-	initialize_x11(); // Initialize X11 resources
-	initialize_game(DisplayWidth(display, DefaultScreen(display)) / CELL_SIZE, DisplayHeight(display, DefaultScreen(display)) / CELL_SIZE);
+	init_game();
 	start_game();
 	free_x11();
 	free_grid();

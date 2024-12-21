@@ -1,7 +1,7 @@
 # Compiler and flags
 CC = cc
 CFLAGS = -Wall -O3 -ftree-vectorize -ffast-math -fPIC -fopenmp $(DEBUG_FLAGS)
-LDFLAGS = -fopenmp -lX11
+LDFLAGS = -fopenmp -lX11 -lXinerama
 TARGET = life
 SRCS = life.c
 OBJS = $(SRCS:.c=.o)
