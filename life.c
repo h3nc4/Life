@@ -14,17 +14,21 @@
 #include <unistd.h>
 
 static unsigned int CELL_SIZE = 10; // Default size of each cell in pixels
-static bool mouse_pressed = false;
 
 // Type definitions
 typedef uint8_t u8int;
 
 typedef struct
 {
-	u8int grid_state;	 // Current grid state (0 or 1)
+	u8int grid_state;	 // Define grid currently being updated
 	unsigned int width;	 // Grid width
 	unsigned int height; // Grid height
 	unsigned int size;	 // Total grid size (width * height)
+	bool running;
+	bool paused;
+	int last_triggered_x;
+	int last_triggered_y;
+	bool mouse_pressed; // Moved mouse_pressed into the struct
 } rules;
 
 // Global grid and its pointers
@@ -34,13 +38,13 @@ static u8int *prev_grid = NULL;
 // This array stores the offset of each row in the grid
 static unsigned int *row_offsets = NULL;
 
-static rules game;
-
-static bool running = true;
-static bool paused = false;
-
-static int last_triggered_x = -1;
-static int last_triggered_y = -1;
+static rules game = {
+	.running = true,
+	.paused = false,
+	.last_triggered_x = -1,
+	.last_triggered_y = -1,
+	.mouse_pressed = false,
+};
 
 // Global X11 variables
 static Display *display = NULL;
@@ -138,11 +142,11 @@ static int toggle_cell_state(unsigned int y, unsigned int x)
 {
 	if (y >= game.height || x >= game.width)
 		return 1;
-	if (last_triggered_x == x && last_triggered_y == y)
+	if (game.last_triggered_x == x && game.last_triggered_y == y)
 		return 0;
 	current_grid[row_offsets[y] + x] ^= 1; // Toggle between 0 and 1
-	last_triggered_x = x;
-	last_triggered_y = y;
+	game.last_triggered_x = x;
+	game.last_triggered_y = y;
 	return 0;
 }
 
@@ -162,10 +166,10 @@ static void handle_key_press(KeySym key)
 	switch (key)
 	{
 	case XK_q: // Quit
-		running = false;
+		game.running = false;
 		break;
 	case XK_space: // Pause
-		paused = !paused;
+		game.paused = !game.paused;
 		break;
 	case XK_r: // Restart
 		restart_game();
@@ -188,16 +192,16 @@ static void handle_events()
 			handle_key_press(XLookupKeysym(&event.xkey, 0));
 		else if (event.type == ButtonPress)
 		{
-			mouse_pressed = true;
+			game.mouse_pressed = true;
 			toggle_cell_state(event.xbutton.y / CELL_SIZE, event.xbutton.x / CELL_SIZE);
 		}
-		else if (event.type == MotionNotify && mouse_pressed)
+		else if (event.type == MotionNotify && game.mouse_pressed)
 			toggle_cell_state(event.xmotion.y / CELL_SIZE, event.xmotion.x / CELL_SIZE);
 		else if (event.type == ButtonRelease)
 		{
-			mouse_pressed = false;
-			last_triggered_x = -1;
-			last_triggered_y = -1;
+			game.mouse_pressed = false;
+			game.last_triggered_x = -1;
+			game.last_triggered_y = -1;
 		}
 	}
 }
@@ -216,12 +220,12 @@ static void start_game()
 	fps_timer_start = start_time.tv_sec;
 #endif
 
-	while (running)
+	while (game.running)
 	{
 		clock_gettime(CLOCK_MONOTONIC, &current_time);
 		unsigned long long now = current_time.tv_sec * 1000000LL + current_time.tv_nsec / 1000;
 		handle_events();
-		if (!paused && now - last_update_time >= update_interval)
+		if (!game.paused && now - last_update_time >= update_interval)
 		{
 			update_grid();
 			last_update_time = now;
