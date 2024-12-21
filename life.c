@@ -150,6 +150,25 @@ static void draw_grid()
 				XFillRectangle(display, pixmap, gc, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
 }
 
+static void handle_key_press(KeySym key)
+{
+	switch (key)
+	{
+	case XK_q: // Quit
+		running = false;
+		break;
+	case XK_space: // Pause
+		paused = !paused;
+		break;
+	case XK_r: // Restart
+		restart_game();
+		break;
+	case XK_c: // Clear
+		clear_grid();
+		break;
+	}
+}
+
 static void handle_events()
 {
 	XEvent event;
@@ -159,24 +178,7 @@ static void handle_events()
 		if (event.type == Expose)
 			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
 		else if (event.type == KeyPress)
-		{
-			KeySym key = XLookupKeysym(&event.xkey, 0);
-			switch (key)
-			{
-			case XK_q: // Quit
-				running = false;
-				break;
-			case XK_space: // Pause
-				paused = !paused;
-				break;
-			case XK_r: // Restart
-				restart_game();
-				break;
-			case XK_c: // Clear
-				clear_grid();
-				break;
-			}
-		}
+			handle_key_press(XLookupKeysym(&event.xkey, 0));
 		else if (event.type == ButtonPress)
 		{
 			mouse_pressed = true;
