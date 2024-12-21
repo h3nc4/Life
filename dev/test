@@ -1,10 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-export DEBUG=1
 export DISPLAY=:99
-readonly DEBUG DISPLAY
-
+readonly DISPLAY
 readonly MAX_LOG_FILES=5
 readonly LOG_FILE="./logs/fps.log"
 readonly RESOLUTIONS="1366x768 1920x1080 2560x1440 3840x2160 5120x2880"
@@ -16,36 +14,48 @@ readonly TIMEOUT=10
 mkdir -p "$(dirname "$LOG_FILE")"
 
 # Cycle log files
-for ((i=MAX_LOG_FILES; i>1; i--)); do
-	[ -f "$LOG_FILE.$((i - 1))" ] && mv "$LOG_FILE.$((i - 1))" "$LOG_FILE.$i"
+i=$MAX_LOG_FILES
+while [ "$i" -gt 1 ]; do
+	j=$((i - 1))
+	if [ -f "$LOG_FILE.$j" ]; then
+		mv "$LOG_FILE.$j" "$LOG_FILE.$i"
+	fi
+	i=$j
 done
-[ -f "$LOG_FILE" ] && mv "$LOG_FILE" "$LOG_FILE.1"
-echo "Benchmarking FPS..." > "$LOG_FILE"
+
+if [ -f "$LOG_FILE" ]; then
+	mv "$LOG_FILE" "$LOG_FILE.1"
+fi
+echo "Benchmarking FPS..." >"$LOG_FILE"
 
 for RES in $RESOLUTIONS; do
-	WIDTH=$(echo "$RES" | cut -d'x' -f1)
-	HEIGHT=$(echo "$RES" | cut -d'x' -f2)
 	FPS_TOTAL=0
 	FPS_COUNT=0
 
 	# Start Xvfb with the specified resolution
 	echo "Testing resolution: $RES" | tee -a "$LOG_FILE"
-	Xvfb "$DISPLAY" -screen 0 "${WIDTH}x${HEIGHT}x24" 2>/dev/null &
+	Xvfb "$DISPLAY" -screen 0 "${RES}x24" 2>/dev/null &
 	XVFB_PID=$!
 	sleep 1
 
-	while read -r FPS; do # Run life with a timeout and read FPS values
-		FPS_TOTAL=$(echo "$FPS_TOTAL + $FPS" | bc)
+	# Capture FPS data
+	FPS_OUTPUT=$(timeout "$TIMEOUT" ./life 1 2>&1 | tee -a "$LOG_FILE" | grep "FPS:" | awk '{print $2}')
+	for FPS in $FPS_OUTPUT; do
+		FPS_TOTAL=$(awk -v t="$FPS_TOTAL" -v f="$FPS" 'BEGIN {print t+f}')
 		FPS_COUNT=$((FPS_COUNT + 1))
-	done < <(timeout "$TIMEOUT" ./life 1 2>&1 | tee -a "$LOG_FILE" | grep "FPS:" | awk '{print $2}')
+	done
 
-	kill "$XVFB_PID" 2>/dev/null # Kill Xvfb
+	kill "$XVFB_PID" 2>/dev/null || true # Kill Xvfb
 
 	# Calculate and print the average FPS
-	FPS_AVERAGE=$(echo "scale=2; $FPS_TOTAL / $FPS_COUNT" | bc)
+	if [ "$FPS_COUNT" -gt 0 ]; then
+		FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {print t/c}')
+	else
+		FPS_AVERAGE=0
+	fi
 	echo "$RES: $FPS_AVERAGE FPS (average)" | tee -a "$LOG_FILE"
 
-	wait "$XVFB_PID" 2>/dev/null # Wait for Xvfb to be killed
+	wait "$XVFB_PID" 2>/dev/null || true
 done
 
 echo "Benchmark completed. Results saved to $LOG_FILE."
