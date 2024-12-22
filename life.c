@@ -124,7 +124,7 @@ static void update_grid()
 {
 	current_grid = grid + game.size * game.grid_state;
 	prev_grid = grid + game.size * (game.grid_state ^ 1);
-#pragma omp parallel for schedule(guided) // Parallelize loop
+	#pragma omp parallel for schedule(guided) // Parallelize loop
 	for (unsigned int idx = 0; idx < game.size; idx++)
 		current_grid[idx] = IS_ALIVE(COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width), prev_grid[idx]);
 	game.grid_state ^= 1;
@@ -259,9 +259,9 @@ static void game_loop(struct timespec *current_time, ull *last_render, ull *last
 	{
 		draw_grid();
 		XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
-#ifdef DEBUG_FPS_LOGGING
+		#ifdef DEBUG_FPS_LOGGING
 		debug_fps_logging(now);
-#endif
+		#endif
 		*last_render = now;
 	}
 	usleep(1000); // Sleep for 1 ms to avoid busy waiting
@@ -273,11 +273,11 @@ static void start_game()
 	ull last_update = 0;
 	struct timespec current_time;
 
-#ifdef DEBUG_FPS_LOGGING
+	#ifdef DEBUG_FPS_LOGGING
 	struct timespec start_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 	fps_timer_start = start_time.tv_sec;
-#endif
+	#endif
 
 	while (game.running)
 		game_loop(&current_time, &last_render, &last_update);
@@ -355,9 +355,9 @@ static void free_x11()
 
 int main(int argc, char *argv[])
 {
-#ifdef DEBUG_FPS_LOGGING
+	#ifdef DEBUG_FPS_LOGGING
 	setbuf(stdout, NULL);
-#endif
+	#endif
 	if (argc == 2)
 	{
 		CELL_SIZE = atoi(argv[1]);
