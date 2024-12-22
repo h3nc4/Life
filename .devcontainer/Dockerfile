@@ -10,9 +10,9 @@ RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
 	bash-completion \
 	ca-certificates \
-	curl \
 	doas \
 	gcc \
+	gdb \
 	git \
 	gnupg \
 	less \

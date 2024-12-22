@@ -3,6 +3,9 @@
 
 #define UPDATE_FPS 10 // Frames per second for grid update
 #define FPS 60		  // Frames per second for rendering
+#define MAX_RECTANGLES_PER_BATCH 100000
+#define RENDER_INTERVAL 1000000 / FPS
+#define UPDATE_INTERVAL 1000000 / UPDATE_FPS
 
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
@@ -18,6 +21,7 @@ static unsigned int CELL_SIZE = 10; // Default size of each cell in pixels
 
 // Type definitions
 typedef uint8_t u8int;
+typedef unsigned long long ull;
 
 typedef struct
 {
@@ -56,10 +60,8 @@ static XRectangle *rectangles = NULL;
 
 #ifdef DEBUG_FPS_LOGGING
 unsigned int frame_count = 0;
-unsigned long long fps_timer_start = 0;
+ull fps_timer_start = 0;
 #endif
-
-#define MAX_RECTANGLES_PER_BATCH 100000
 
 // Macros for index calculation and neighbor counting
 #define PREV_Y(y) (((y) - 1 + game.height) % game.height)
@@ -230,12 +232,45 @@ static void handle_events()
 	}
 }
 
+#ifdef DEBUG_FPS_LOGGING
+static void debug_fps_logging(ull now)
+{
+	frame_count++;
+	if (now / 1000000LL - fps_timer_start >= 1)
+	{
+		fprintf(stdout, "FPS: %u\n", frame_count);
+		frame_count = 0;
+		fps_timer_start = now / 1000000LL;
+	}
+}
+#endif
+
+static void game_loop(struct timespec *current_time, ull *last_render, ull *last_update)
+{
+	clock_gettime(CLOCK_MONOTONIC, current_time);
+	ull now = current_time->tv_sec * 1000000LL + current_time->tv_nsec / 1000;
+	handle_events();
+	if (!game.paused && now - *last_update >= UPDATE_INTERVAL)
+	{
+		update_grid();
+		*last_update = now;
+	}
+	if (now - *last_render >= RENDER_INTERVAL)
+	{
+		draw_grid();
+		XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+#ifdef DEBUG_FPS_LOGGING
+		debug_fps_logging(now);
+#endif
+		*last_render = now;
+	}
+	usleep(1000); // Sleep for 1 ms to avoid busy waiting
+}
+
 static void start_game()
 {
-	const unsigned int render_interval = 1000000 / FPS;
-	const unsigned int update_interval = 1000000 / UPDATE_FPS;
-	unsigned long long last_render_time = 0;
-	unsigned long long last_update_time = 0;
+	ull last_render = 0;
+	ull last_update = 0;
 	struct timespec current_time;
 
 #ifdef DEBUG_FPS_LOGGING
@@ -245,34 +280,7 @@ static void start_game()
 #endif
 
 	while (game.running)
-	{
-		clock_gettime(CLOCK_MONOTONIC, &current_time);
-		unsigned long long now = current_time.tv_sec * 1000000LL + current_time.tv_nsec / 1000;
-		handle_events();
-		if (!game.paused && now - last_update_time >= update_interval)
-		{
-			update_grid();
-			last_update_time = now;
-		}
-		if (now - last_render_time >= render_interval)
-		{
-			draw_grid();
-			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
-
-#ifdef DEBUG_FPS_LOGGING
-			frame_count++;
-			if (now / 1000000LL - fps_timer_start >= 1)
-			{
-				fprintf(stdout, "FPS: %u\n", frame_count);
-				frame_count = 0;
-				fps_timer_start = now / 1000000LL;
-			}
-#endif
-
-			last_render_time = now;
-		}
-		usleep(1000); // Sleep for 1 ms to avoid busy waiting
-	}
+		game_loop(&current_time, &last_render, &last_update);
 }
 
 static void set_fullscreen()
