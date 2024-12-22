@@ -15,7 +15,7 @@
 
 CC = cc
 CFLAGS = -Wall -O3 -ftree-vectorize -ffast-math -fPIC -fopenmp $(DEBUG_FLAGS)
-LDFLAGS = -fopenmp -lX11 -lXinerama -lXext
+LDFLAGS = -Bstatic -l:libgomp.a -l:libXinerama.a -l:libXext.a -Bdynamic -lX11
 TARGET = life
 SRCS = life.c
 OBJS = $(SRCS:.c=.o)

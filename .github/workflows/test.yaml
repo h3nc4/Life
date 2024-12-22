@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  acceptance:
+  build:
     runs-on: ubuntu-latest
     container:
       image: debian:bookworm-slim
@@ -22,9 +22,33 @@ jobs:
             libx11-dev \
             libxext-dev \
             libxinerama-dev \
-            make \
-            xvfb
+            make
       - name: Build
-        run: make DEBUG_FLAGS=-DDEBUG_FPS_LOGGING
+        run: |
+          make DEBUG_FLAGS=-DDEBUG_FPS_LOGGING
+          tar -cf life.tar life
+      - uses: actions/upload-artifact@v4
+        with:
+          name: life
+          path: life.tar
+          compression-level: 9
+          retention-days: 1
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends xvfb
+      - uses: actions/download-artifact@v4
+        with:
+          name: life
+      - name: Extract artifact
+        run: tar -xf life.tar
       - name: Test
         run: dev/test

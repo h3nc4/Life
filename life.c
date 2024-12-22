@@ -123,8 +123,7 @@ static void free_game()
 	XCloseDisplay(display);
 }
 
-// Aligned allocation for SIMD
-static void allocate_grid()
+static void init_grid()
 {
 	grid = aligned_alloc(32, 2 * game.size * sizeof(u8int));
 	row_offsets = malloc(game.height * sizeof(unsigned int));
@@ -133,10 +132,6 @@ static void allocate_grid()
 		fprintf(stderr, "Error: Failed to allocate memory.\n");
 		exit(EXIT_FAILURE);
 	}
-}
-
-static void init_grid()
-{
 	srand(time(NULL));
 	for (unsigned int i = 0; i < game.size; i++)
 		grid[i] = rand() % 2;
@@ -168,7 +163,6 @@ static void init_rules(unsigned int w, unsigned int h)
 	game.width = w;
 	game.height = h;
 	game.size = game.width * game.height;
-	allocate_grid();
 	init_grid();
 }
 
@@ -204,6 +198,7 @@ static inline void draw(int i)
 static void draw_grid()
 {
 	memset(ximage->data, 0, ximage->bytes_per_line * ximage->height);
+	#pragma omp parallel for schedule(guided) // Parallelize loop
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
 			draw(i);
