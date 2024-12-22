@@ -163,26 +163,29 @@ static int toggle_cell_state(unsigned int y, unsigned int x)
 	return 0;
 }
 
+static inline void check_cell(unsigned int x, unsigned int y, unsigned int *rect_count)
+{
+	rectangles[*rect_count].x = x * CELL_SIZE;
+	rectangles[*rect_count].y = y * CELL_SIZE;
+	rectangles[*rect_count].width = CELL_SIZE;
+	rectangles[*rect_count].height = CELL_SIZE;
+	(*rect_count)++;
+	if (*rect_count >= MAX_RECTANGLES_PER_BATCH)
+	{
+		XFillRectangles(display, pixmap, gc, rectangles, *rect_count);
+		*rect_count = 0;
+	}
+}
+
 static void draw_grid()
 {
 	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
 	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
 	XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
-	int rect_count = 0;
+	unsigned int rect_count = 0;
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
-		{
-			rectangles[rect_count].x = (i % game.width) * CELL_SIZE;
-			rectangles[rect_count].y = (i / game.width) * CELL_SIZE;
-			rectangles[rect_count].width = CELL_SIZE;
-			rectangles[rect_count].height = CELL_SIZE;
-			rect_count++;
-			if (rect_count >= MAX_RECTANGLES_PER_BATCH)
-			{
-				XFillRectangles(display, pixmap, gc, rectangles, rect_count);
-				rect_count = 0;
-			}
-		}
+			check_cell(i % game.width, i / game.width, &rect_count);
 	if (rect_count > 0)
 		XFillRectangles(display, pixmap, gc, rectangles, rect_count);
 }
