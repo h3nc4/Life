@@ -9,6 +9,7 @@
 
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
+#include <X11/extensions/XShm.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/shm.h>
 
 static unsigned int CELL_SIZE = 10; // Default size of each cell in pixels
 
@@ -54,9 +56,9 @@ static rules game = {
 // Global X11 variables
 static Display *display = NULL;
 static Window window;
-static Pixmap pixmap;
 static GC gc;
-static XRectangle *rectangles = NULL;
+static XShmSegmentInfo shm_info;
+static XImage *ximage = NULL;
 
 #ifdef DEBUG_FPS_LOGGING
 unsigned int frame_count = 0;
@@ -83,11 +85,28 @@ ull fps_timer_start = 0;
 // Otherwise, it dies.
 #define IS_ALIVE(living_neighbors, cell) ((living_neighbors == 3) | (cell & (living_neighbors == 2)))
 
-static void free_grid()
+static void free_game()
 {
-	free(grid);
-	free(row_offsets);
-	free(rectangles);
+	if (ximage) {
+		XDestroyImage(ximage);
+		ximage = NULL;
+	}
+	XShmDetach(display, &shm_info);
+	if (shm_info.shmaddr) {
+		shmdt(shm_info.shmaddr);
+		shm_info.shmaddr = NULL;
+	}
+	if (grid) {
+		free(grid);
+		grid = NULL;
+	}
+	if (row_offsets) {
+		free(row_offsets);
+		row_offsets = NULL;
+	}
+	XFreeGC(display, gc);
+	XDestroyWindow(display, window);
+	XCloseDisplay(display);
 }
 
 // Aligned allocation for SIMD
@@ -98,12 +117,6 @@ static void allocate_grid()
 	if (!grid || !row_offsets)
 	{
 		fprintf(stderr, "Error: Failed to allocate memory.\n");
-		exit(EXIT_FAILURE);
-	}
-	rectangles = malloc(game.size * sizeof(XRectangle));
-	if (rectangles == NULL)
-	{
-		fprintf(stderr, "Error: Failed to allocate memory for rectangles.\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -137,7 +150,7 @@ static void update_grid()
 static void init_rules(unsigned int w, unsigned int h)
 {
 	if (grid)
-		free_grid();
+		free_game();
 	game.width = w;
 	game.height = h;
 	game.size = game.width * game.height;
@@ -167,31 +180,19 @@ static int toggle_cell_state(unsigned int y, unsigned int x)
 	return 0;
 }
 
-static inline void check_cell(unsigned int x, unsigned int y, unsigned int *rect_count)
+static inline void draw(int i)
 {
-	rectangles[*rect_count].x = x * CELL_SIZE;
-	rectangles[*rect_count].y = y * CELL_SIZE;
-	rectangles[*rect_count].width = CELL_SIZE;
-	rectangles[*rect_count].height = CELL_SIZE;
-	(*rect_count)++;
-	if (*rect_count >= MAX_RECTANGLES_PER_BATCH)
-	{
-		XFillRectangles(display, pixmap, gc, rectangles, *rect_count);
-		*rect_count = 0;
-	}
+	for (unsigned int cy = 0; cy < CELL_SIZE; cy++)
+		for (unsigned int cx = 0; cx < CELL_SIZE; cx++)
+			XPutPixel(ximage, (i % game.width) * CELL_SIZE + cx, (i / game.width) * CELL_SIZE + cy, WhitePixel(display, DefaultScreen(display)));
 }
 
 static void draw_grid()
 {
-	XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
-	XFillRectangle(display, pixmap, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE);
-	XSetForeground(display, gc, WhitePixel(display, DefaultScreen(display)));
-	unsigned int rect_count = 0;
+	memset(ximage->data, 0, ximage->bytes_per_line * ximage->height);
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
-			check_cell(i % game.width, i / game.width, &rect_count);
-	if (rect_count > 0)
-		XFillRectangles(display, pixmap, gc, rectangles, rect_count);
+			draw(i);
 }
 
 static void handle_key_press(KeySym key)
@@ -220,7 +221,7 @@ static void handle_events()
 	{
 		XNextEvent(display, &event);
 		if (event.type == Expose)
-			XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+			XShmPutImage(display, window, gc, ximage, 0, 0, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, False);
 		else if (event.type == KeyPress)
 			handle_key_press(XLookupKeysym(&event.xkey, 0));
 		else if (event.type == ButtonPress)
@@ -266,7 +267,7 @@ static void game_loop(struct timespec *current_time, ull *last_render, ull *last
 	if (now - *last_render >= RENDER_INTERVAL)
 	{
 		draw_grid();
-		XCopyArea(display, pixmap, window, gc, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, 0, 0);
+		XShmPutImage(display, window, gc, ximage, 0, 0, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, False);
 		#ifdef DEBUG_FPS_LOGGING
 		debug_fps_logging(now);
 		#endif
@@ -327,38 +328,33 @@ static int *get_screen_size()
 	return screen_size;
 }
 
-static Display *get_display()
-{
-	Display *display = XOpenDisplay(getenv("DISPLAY"));
-	if (!display)
-	{
-		fprintf(stderr, "Error: Unable to open X display.\n");
-		exit(EXIT_FAILURE);
-	}
-	return display;
-}
-
 static void init_game()
 {
-	display = get_display();
-	int *screen_size = get_screen_size();
+	if (!(display = XOpenDisplay(getenv("DISPLAY"))))
+		goto x_error;
 	int screen = DefaultScreen(display);
+	int *screen_size = get_screen_size();
 	window = XCreateSimpleWindow(display, RootWindow(display, screen), 0, 0, screen_size[0], screen_size[1], 1, WhitePixel(display, screen), BlackPixel(display, screen));
 	XSelectInput(display, window, ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
 	XMapWindow(display, window);
 	set_fullscreen();
-	pixmap = XCreatePixmap(display, window, screen_size[0], screen_size[1], DefaultDepth(display, screen));
 	gc = XCreateGC(display, window, 0, NULL);
 	XSetForeground(display, gc, WhitePixel(display, screen));
 	init_rules(screen_size[0] / CELL_SIZE, screen_size[1] / CELL_SIZE);
-}
-
-static void free_x11()
-{
-	XFreePixmap(display, pixmap);
-	XFreeGC(display, gc);
-	XDestroyWindow(display, window);
-	XCloseDisplay(display);
+	if (!(ximage = XShmCreateImage(display, DefaultVisual(display, screen), DefaultDepth(display, screen), ZPixmap, NULL, &shm_info, game.width * CELL_SIZE, game.height * CELL_SIZE)))
+		goto x_error;
+	if ((shm_info.shmid = shmget(IPC_PRIVATE, ximage->bytes_per_line * ximage->height, IPC_CREAT | 0600)) < 0 ||
+		(shm_info.shmaddr = (char *)shmat(shm_info.shmid, NULL, 0)) == (char *)-1)
+		goto x_error;
+	shm_info.readOnly = False;
+	ximage->data = shm_info.shmaddr;
+	if (!XShmAttach(display, &shm_info))
+		goto x_error;
+	shmctl(shm_info.shmid, IPC_RMID, NULL);
+	return;
+x_error:
+	perror("Error initializing X resources");
+	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char *argv[])
@@ -367,17 +363,13 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 	#endif
 	if (argc == 2)
-	{
-		CELL_SIZE = atoi(argv[1]);
-		if (CELL_SIZE <= 0)
+		if ((CELL_SIZE = atoi(argv[1])) <= 0)
 		{
 			fprintf(stderr, "Error: Cell size must be positive.\n");
 			return EXIT_FAILURE;
 		}
-	}
 	init_game();
 	start_game();
-	free_x11();
-	free_grid();
+	free_game();
 	return EXIT_SUCCESS;
 }

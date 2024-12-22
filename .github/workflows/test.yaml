@@ -1,4 +1,5 @@
 name: Test Life
+description: These tests run on one cell per pixel, making them a stress test for the worst-case scenario.
 
 on:
   push:
@@ -19,6 +20,7 @@ jobs:
             gcc \
             libc-dev \
             libx11-dev \
+            libxext-dev \
             libxinerama-dev \
             make \
             xvfb

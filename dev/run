@@ -1,5 +1,5 @@
 #!/bin/sh
 set -e
 
-cc -g -o ./life -DDEBUG_FPS_LOGGING -fPIC -fopenmp ./life.c -lX11 -lXinerama
+cc -g -o ./life -DDEBUG_FPS_LOGGING -fPIC -fopenmp ./life.c -lX11 -lXinerama -lXext
 gdb --args ./life 1

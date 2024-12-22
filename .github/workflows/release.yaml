@@ -1,5 +1,5 @@
 name: Release Life
-description: 'Create a release with artifacts'
+description: Create a release with artifacts
 
 on:
   push:
@@ -20,6 +20,7 @@ jobs:
             gcc \
             libc-dev \
             libx11-dev \
+            libxext-dev \
             libxinerama-dev \
             make
       - name: Build

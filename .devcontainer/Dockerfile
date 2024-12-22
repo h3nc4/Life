@@ -18,6 +18,7 @@ RUN apt-get update && \
 	less \
 	libc-dev \
 	libx11-dev \
+	libxext-dev \
 	libxinerama-dev \
 	make \
 	nano \

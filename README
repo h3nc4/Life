@@ -28,6 +28,7 @@ Building
 - Make
 - GCC
 - libX11
+- libXext
 - libXinerama
 
 To compile a release build
