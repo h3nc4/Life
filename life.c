@@ -60,6 +60,7 @@ static XRectangle *rectangles = NULL;
 
 #ifdef DEBUG_FPS_LOGGING
 unsigned int frame_count = 0;
+unsigned int update_count = 0;
 ull fps_timer_start = 0;
 #endif
 
@@ -128,6 +129,9 @@ static void update_grid()
 	for (unsigned int idx = 0; idx < game.size; idx++)
 		current_grid[idx] = IS_ALIVE(COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width), prev_grid[idx]);
 	game.grid_state ^= 1;
+	#ifdef DEBUG_FPS_LOGGING
+	update_count++;
+	#endif
 }
 
 static void init_rules(unsigned int w, unsigned int h)
@@ -241,8 +245,9 @@ static void debug_fps_logging(ull now)
 	frame_count++;
 	if (now / 1000000LL - fps_timer_start >= 1)
 	{
-		fprintf(stdout, "FPS: %u\n", frame_count);
+		fprintf(stdout, "FPS: %u, Updates: %u\n", frame_count, update_count);
 		frame_count = 0;
+		update_count = 0;
 		fps_timer_start = now / 1000000LL;
 	}
 }
