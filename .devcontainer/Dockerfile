@@ -21,13 +21,17 @@ RUN apt-get update && \
 	libxext-dev \
 	libxinerama-dev \
 	make \
+	man-db \
 	nano \
+	novnc \
+	procps \
 	ssh-client \
 	wget \
-	xvfb && \
-	\
+	x11vnc \
+	xvfb \
+	&& \
 	apt-get clean && \
-	rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+	rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user and give him doas permissions
 RUN groupadd dev && \
@@ -35,8 +39,14 @@ RUN groupadd dev && \
 	echo "permit nopass nolog keepenv dev as root" > /etc/doas.conf && \
 	echo "[ -f \"\$HOME/.config/bash/bashrc\" ] && . \"\$HOME/.config/bash/bashrc\"" >>/etc/bash.bashrc
 
-# X forwarding
-ENV DISPLAY=:0
+# Xvfb
+ENV DISPLAY=:99
+RUN mkdir -p /tmp/.X11-unix && \
+	chmod 1777 /tmp/.X11-unix
+
+# Set up init script
+COPY --chown=1000:1000 entrypoint /entrypoint
+RUN chmod +x /entrypoint
 
 # Run as non-root user
 USER dev

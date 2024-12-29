@@ -1,12 +1,14 @@
 {
 	"name": "Life Dev Container",
 	"dockerFile": "./Dockerfile",
+	"postStartCommand": "/entrypoint",
 	"mounts": [
-		"type=bind,source=${localEnv:HOME},target=/home/dev",
-		"type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix",
-		"type=bind,source=/run/user/1000/Xauthority,target=/run/user/1000/Xauthority"
+		"type=bind,source=${localEnv:HOME},target=/home/dev"
 	],
-	"runArgs": ["--net=host"],
+	"forwardPorts": [
+		6080,
+		5900
+	],
 	"workspaceMount": "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
 	"workspaceFolder": "/workdir",
 	"customizations": {
@@ -17,11 +19,14 @@
 				"donjayamanne.githistory",
 				"eamodio.gitlens",
 				"ms-vscode.cpptools-extension-pack",
-				"timonwong.shellcheck"
+				"timonwong.shellcheck",
+				"foxundermoon.shell-format",
+				"ms-azuretools.vscode-docker",
+				"ms-vscode-remote.vscode-remote-extensionpack"
 			],
 			"settings": {
 				"terminal.integrated.env.linux": {
-					"DISPLAY": "${localEnv:DISPLAY}"
+					"DISPLAY": ":99"
 				}
 			}
 		}

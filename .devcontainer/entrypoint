@@ -1,0 +1,8 @@
+#!/bin/sh
+export DISPLAY=:99
+mkdir -p "$HOME/.local"
+
+Xvfb "$DISPLAY" -screen 0 "1024x768x24" -listen tcp -ac &
+x11vnc -noxfixes -noxrecord -noxdamage -display "$DISPLAY" -nopw -wait 5 -shared -forever -rfbport 5900 -o "$HOME/.local/x11vnc.log" &
+/usr/share/novnc/utils/novnc_proxy --vnc localhost:5900 &
+wait
