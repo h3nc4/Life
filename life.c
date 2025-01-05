@@ -17,9 +17,10 @@
 
 #define UPDATE_FPS 10 // Frames per second for grid update
 #define FPS 60		  // Frames per second for rendering
+#define FPS_THRESHOLD 3.5
 #define MAX_RECTANGLES_PER_BATCH 100000
-#define RENDER_INTERVAL 1000000 / FPS
-#define UPDATE_INTERVAL 1000000 / UPDATE_FPS
+#define RENDER_INTERVAL 1000000 / FPS * (100 - FPS_THRESHOLD) / 100
+#define UPDATE_INTERVAL 1000000 / UPDATE_FPS * (100 - FPS_THRESHOLD) / 100
 
 #include <X11/Xutil.h>
 #include <X11/extensions/Xinerama.h>
@@ -273,8 +274,17 @@ static void handle_events()
 static void debug_fps_logging(ull now)
 {
 	frame_count++;
+	static bool first = true;
 	if (now / 1000000LL - fps_timer_start >= 1)
 	{
+		if (first)
+		{
+			frame_count = 0;
+			update_count = 0;
+			fps_timer_start = now / 1000000LL;
+			first = false;
+			return;
+		}
 		fprintf(stdout, "FPS: %u | Updates: %u\n", frame_count, update_count);
 		frame_count = 0;
 		update_count = 0;
