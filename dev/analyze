@@ -8,36 +8,62 @@ from statistics import mean
 LOG_DIR = "./logs"
 
 
+def process_resolution(line, current_resolution, resolution_data):
+	"""
+	Process a line from the log file to extract FPS, Draw time, and Update time values.
+	"""
+	if not current_resolution:
+		return resolution_data
+	fps_match = re.search(r"(\d+\.\d+) FPS", line)
+	draw_match = re.search(r"(\d+\.\d+) ns \(average Draw time\)", line)
+	update_match = re.search(r"(\d+\.\d+) ns \(average Update time\)", line)
+	if fps_match:
+		resolution_data[current_resolution]["fps"].append(float(fps_match.group(1)))
+	if draw_match:
+		resolution_data[current_resolution]["draw_times"].append(float(draw_match.group(1)))
+	if update_match:
+		resolution_data[current_resolution]["update_times"].append(float(update_match.group(1)))
+	return resolution_data
+
+
 def parse_log_file(file_path):
 	"""
-	Parse a log file to extract FPS, Draw time, and Update time values.
+	Parse a log file to extract FPS, Draw time, and Update time values per resolution.
 	"""
-	fps_values, draw_times, update_times = [], [], []
-	with open(file_path, "r") as file:
-		for line in file:
-			fps_match = re.search(r"(\d+\.\d+) FPS", line)
-			draw_match = re.search(r"(\d+\.\d+) ns \(average Draw time\)", line)
-			update_match = re.search(r"(\d+\.\d+) ns \(average Update time\)", line)
-			if fps_match:
-				fps_values.append(float(fps_match.group(1)))
-			if draw_match:
-				draw_times.append(float(draw_match.group(1)))
-			if update_match:
-				update_times.append(float(update_match.group(1)))
-	return fps_values, draw_times, update_times
+	resolution_data = {}
+	current_resolution = None
+	file = open(file_path, "r")
+	for line in file:
+		resolution_match = re.match(r"(\d+x\d+):", line)
+		if resolution_match:
+			current_resolution = resolution_match.group(1)
+			resolution_data[current_resolution] = {"fps": [], "draw_times": [], "update_times": []}
+		else:
+			resolution_data = process_resolution(line, current_resolution, resolution_data)
+	file.close()
+	return resolution_data
 
 
 def calculate_averages(file_paths):
 	"""
 	Calculate average FPS, Draw time, and Update time from multiple log files.
 	"""
-	fps_values, draw_times, update_times = [], [], []
+	all_resolutions_data = {}
 	for file_path in file_paths:
-		fps, draw, update = parse_log_file(file_path)
-		fps_values.extend(fps)
-		draw_times.extend(draw)
-		update_times.extend(update)
-	return mean(fps_values), mean(draw_times), mean(update_times)
+		resolution_data = parse_log_file(file_path)
+		for resolution, metrics in resolution_data.items():
+			if resolution not in all_resolutions_data:
+				all_resolutions_data[resolution] = {"fps": [], "draw_times": [], "update_times": []}
+			all_resolutions_data[resolution]["fps"].extend(metrics["fps"])
+			all_resolutions_data[resolution]["draw_times"].extend(metrics["draw_times"])
+			all_resolutions_data[resolution]["update_times"].extend(metrics["update_times"])
+	averages = {}
+	for resolution, metrics in all_resolutions_data.items():
+		avg_fps = mean(metrics["fps"]) if metrics["fps"] else 0
+		avg_draw_time = mean(metrics["draw_times"]) if metrics["draw_times"] else 0
+		avg_update_time = mean(metrics["update_times"]) if metrics["update_times"] else 0
+		averages[resolution] = (avg_fps, avg_draw_time, avg_update_time)
+	return averages
 
 
 # Parse arguments
@@ -53,12 +79,14 @@ if args.compare:
 	version1_files[0] = os.path.join(LOG_DIR, "results.log")
 	version1_avg = calculate_averages(version1_files)
 	version2_avg = calculate_averages(version2_files)
-	print("Comparison of Averages:", file=sys.stdout)
-	print(f"Metric                  | Version 1 (logs 0-{args.max_logs // 2 - 1}) | Version 2 (logs {args.max_logs // 2}-{args.max_logs - 1})", file=sys.stdout)
-	print("------------------------|------------------------|----------------------", file=sys.stdout)
-	print(f"FPS (average)           | {version1_avg[0]:.2f}                  | {version2_avg[0]:.2f}", file=sys.stdout)
-	print(f"Draw time (average ns)  | {version1_avg[1]:.2f}                | {version2_avg[1]:.2f}", file=sys.stdout)
-	print(f"Update time (average ns)| {version1_avg[2]:.2f}                | {version2_avg[2]:.2f}", file=sys.stdout)
+	print("-" * 60, file=sys.stdout)
+	print(f"{'Res':<10} | {'Metric':<23} | {'Version 1':<8} | {'Version 2':<8}", file=sys.stdout)
+	print("-" * 60, file=sys.stdout)
+	for resolution in version1_avg:
+		print(f"           | FPS (average)           | {version1_avg[resolution][0]:.2f}     | {version2_avg[resolution][0]:.2f}", file=sys.stdout)
+		print(f"{resolution:<10} | Draw time (average ns)  | {version1_avg[resolution][1]:.2f}   | {version2_avg[resolution][1]:.2f}", file=sys.stdout)
+		print(f"           | Update time (average ns)| {version1_avg[resolution][2]:.2f}   | {version2_avg[resolution][2]:.2f}", file=sys.stdout)
+		print("-" * 60, file=sys.stdout)
 	sys.exit(0)
 
 if args.max_logs < 1:
@@ -71,9 +99,11 @@ if not os.path.exists(os.path.join(LOG_DIR, f"results.log.{args.max_logs - 1}"))
 all_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs)]
 all_files[0] = os.path.join(LOG_DIR, "results.log")
 all_avg = calculate_averages(all_files)
-print("Averages for All Logs:", file=sys.stdout)
-print(f"Metric                  | All Logs (0-{args.max_logs - 1})", file=sys.stdout)
-print("------------------------|----------------------", file=sys.stdout)
-print(f"FPS (average)           | {all_avg[0]:.2f}", file=sys.stdout)
-print(f"Draw time (average ns)  | {all_avg[1]:.2f}", file=sys.stdout)
-print(f"Update time (average ns)| {all_avg[2]:.2f}", file=sys.stdout)
+print("-" * 46, file=sys.stdout)
+print(f"{'Res':<10} | Metric", file=sys.stdout)
+print("-" * 46, file=sys.stdout)
+for resolution in all_avg:
+	print(f"           | FPS (average)           | {all_avg[resolution][0]:.2f}", file=sys.stdout)
+	print(f"{resolution:<10} | Draw time (average ns)  | {all_avg[resolution][1]:.2f}", file=sys.stdout)
+	print(f"           | Update time (average ns)| {all_avg[resolution][2]:.2f}", file=sys.stdout)
+	print("-" * 46, file=sys.stdout)
