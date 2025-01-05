@@ -3,14 +3,14 @@ set -e
 
 export DISPLAY=:99
 readonly DISPLAY
-readonly MAX_LOG_FILES=5
+readonly MAX_LOG_FILES=10
 readonly LOG_FILE="./logs/fps.log"
 readonly RESOLUTIONS="1366x768 1920x1080 2560x1440 3840x2160 5120x2880"
 readonly TIMEOUT=10
 
 [ -x ./life ] # Exits if the life binary is not found
 
-# Creat log directory if it doesn't exist
+# Create log directory if it doesn't exist
 mkdir -p "$(dirname "$LOG_FILE")"
 
 # Cycle log files
@@ -28,9 +28,17 @@ if [ -f "$LOG_FILE" ]; then
 fi
 echo "Benchmarking FPS..." >"$LOG_FILE"
 
+# Create a temporary file to store the current run's output and ensure it's cleaned up
+CURRENT_RUN_FILE=$(mktemp)
+trap 'rm -f "$CURRENT_RUN_FILE"' EXIT
+
 for RES in $RESOLUTIONS; do
 	FPS_TOTAL=0
 	FPS_COUNT=0
+	DRAW_TIME_TOTAL=0
+	DRAW_TIME_COUNT=0
+	UPDATE_TIME_TOTAL=0
+	UPDATE_TIME_COUNT=0
 
 	# Start Xvfb with the specified resolution
 	echo "Testing resolution: $RES" | tee -a "$LOG_FILE"
@@ -38,24 +46,49 @@ for RES in $RESOLUTIONS; do
 	XVFB_PID=$!
 	sleep 1
 
-	# Capture FPS data
-	FPS_OUTPUT=$(timeout "$TIMEOUT" ./life 1 2>&1 | tee -a "$LOG_FILE" | grep "FPS:" | awk '{print $2}')
-	for FPS in $FPS_OUTPUT; do
-		FPS_TOTAL=$(awk -v t="$FPS_TOTAL" -v f="$FPS" 'BEGIN {print t+f}')
-		FPS_COUNT=$((FPS_COUNT + 1))
-	done
+	# Capture FPS, Draw time, and Update time data
+	while read -r line; do
+		case "$line" in
+		*"FPS:"*)
+			FPS=$(echo "$line" | awk '{print $2}')
+			FPS_TOTAL=$((FPS_TOTAL + FPS))
+			FPS_COUNT=$((FPS_COUNT + 1))
+			;;
+		*"Draw time:"*)
+			DRAW_TIME=$(echo "$line" | awk '{print $3}')
+			DRAW_TIME_TOTAL=$((DRAW_TIME_TOTAL + DRAW_TIME))
+			DRAW_TIME_COUNT=$((DRAW_TIME_COUNT + 1))
+			;;
+		*"Update time:"*)
+			UPDATE_TIME=$(echo "$line" | awk '{print $3}')
+			UPDATE_TIME_TOTAL=$((UPDATE_TIME_TOTAL + UPDATE_TIME))
+			UPDATE_TIME_COUNT=$((UPDATE_TIME_COUNT + 1))
+			;;
+		esac
+	done <<EOF
+"$(timeout "$TIMEOUT" ./life 1 2>&1 | tee -a "$LOG_FILE")"
+EOF
 
-	kill "$XVFB_PID" 2>/dev/null || true # Kill Xvfb
+	# Clean up
+	kill "$XVFB_PID" 2>/dev/null || : # Kill Xvfb
 
-	# Calculate and print the average FPS
-	if [ "$FPS_COUNT" -gt 0 ]; then
-		FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {print t/c}')
-	else
-		FPS_AVERAGE=0
+	# Calculate and print the averages
+	if [ "$FPS_COUNT" -le 0 ] || [ "$DRAW_TIME_COUNT" -le 0 ] || [ "$UPDATE_TIME_COUNT" -le 0 ]; then
+		echo "Error: No data collected for $RES" | tee -a "$LOG_FILE" >&2
+		return 1
 	fi
-	echo "$RES: $FPS_AVERAGE FPS (average)" | tee -a "$LOG_FILE"
+	FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {print t/c}')
+	DRAW_TIME_AVERAGE=$(awk -v t="$DRAW_TIME_TOTAL" -v c="$DRAW_TIME_COUNT" 'BEGIN {print t/c}')
+	UPDATE_TIME_AVERAGE=$(awk -v t="$UPDATE_TIME_TOTAL" -v c="$UPDATE_TIME_COUNT" 'BEGIN {print t/c}')
 
-	wait "$XVFB_PID" 2>/dev/null || true
+	# Print results
+	tee -a "$LOG_FILE" <<EOF
+$RES:
+  $FPS_AVERAGE FPS (average)
+  $DRAW_TIME_AVERAGE ns (average Draw time)
+  $UPDATE_TIME_AVERAGE ns (average Update time)
+EOF
+	wait "$XVFB_PID" || :
 done
 
 echo "Benchmark completed. Results saved to $LOG_FILE."

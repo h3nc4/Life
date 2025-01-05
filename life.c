@@ -275,7 +275,7 @@ static void debug_fps_logging(ull now)
 	frame_count++;
 	if (now / 1000000LL - fps_timer_start >= 1)
 	{
-		fprintf(stdout, "FPS: %u, Updates: %u\n", frame_count, update_count);
+		fprintf(stdout, "FPS: %u | Updates: %u\n", frame_count, update_count);
 		frame_count = 0;
 		update_count = 0;
 		fps_timer_start = now / 1000000LL;
