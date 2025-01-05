@@ -4,7 +4,8 @@ set -e
 export DISPLAY=:99
 readonly DISPLAY
 readonly MAX_LOG_FILES=10
-readonly LOG_FILE="./logs/fps.log"
+readonly LOG_FILE="./logs/run.log"
+readonly LOG_RESULTS_FILE="./logs/results.log"
 readonly RESOLUTIONS="1366x768 1920x1080 2560x1440 3840x2160 5120x2880"
 readonly TIMEOUT=10
 
@@ -19,14 +20,15 @@ while [ "$i" -gt 1 ]; do
 	j=$((i - 1))
 	if [ -f "$LOG_FILE.$j" ]; then
 		mv "$LOG_FILE.$j" "$LOG_FILE.$i"
+		mv "$LOG_RESULTS_FILE.$j" "$LOG_RESULTS_FILE.$i"
 	fi
 	i=$j
 done
 
 if [ -f "$LOG_FILE" ]; then
 	mv "$LOG_FILE" "$LOG_FILE.1"
+	mv "$LOG_RESULTS_FILE" "$LOG_RESULTS_FILE.1"
 fi
-echo "Benchmarking FPS..." >"$LOG_FILE"
 
 # Create a temporary file to store the current run's output and ensure it's cleaned up
 CURRENT_RUN_FILE=$(mktemp)
@@ -74,15 +76,15 @@ EOF
 
 	# Calculate and print the averages
 	if [ "$FPS_COUNT" -le 0 ] || [ "$DRAW_TIME_COUNT" -le 0 ] || [ "$UPDATE_TIME_COUNT" -le 0 ]; then
-		echo "Error: No data collected for $RES" | tee -a "$LOG_FILE" >&2
+		echo "Error: No data collected for $RES" | tee -a "$LOG_RESULTS_FILE" >&2
 		return 1
 	fi
-	FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {print t/c}')
-	DRAW_TIME_AVERAGE=$(awk -v t="$DRAW_TIME_TOTAL" -v c="$DRAW_TIME_COUNT" 'BEGIN {print t/c}')
-	UPDATE_TIME_AVERAGE=$(awk -v t="$UPDATE_TIME_TOTAL" -v c="$UPDATE_TIME_COUNT" 'BEGIN {print t/c}')
+	FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {printf "%.2f", t/c}')
+	DRAW_TIME_AVERAGE=$(awk -v t="$DRAW_TIME_TOTAL" -v c="$DRAW_TIME_COUNT" 'BEGIN {printf "%.2f", t/c}')
+	UPDATE_TIME_AVERAGE=$(awk -v t="$UPDATE_TIME_TOTAL" -v c="$UPDATE_TIME_COUNT" 'BEGIN {printf "%.2f", t/c}')
 
 	# Print results
-	tee -a "$LOG_FILE" <<EOF
+	tee -a "$LOG_RESULTS_FILE" <<EOF
 $RES:
   $FPS_AVERAGE FPS (average)
   $DRAW_TIME_AVERAGE ns (average Draw time)
@@ -91,4 +93,4 @@ EOF
 	wait "$XVFB_PID" || :
 done
 
-echo "Benchmark completed. Results saved to $LOG_FILE."
+echo "Benchmark completed. Results saved to $LOG_RESULTS_FILE."
