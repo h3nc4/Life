@@ -28,9 +28,8 @@ RUN apt-get update && \
 	novnc \
 	procps \
 	ssh-client \
+	tigervnc-standalone-server \
 	wget \
-	x11vnc \
-	xvfb \
 	&& \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/*
@@ -38,6 +37,8 @@ RUN apt-get update && \
 # Create a non-root user and give him doas permissions
 RUN groupadd dev && \
 	useradd -m -g dev -u 1000 -s /bin/bash dev && \
+	mkdir /home/dev/.local && \
+	chown 1000:1000 /home/dev/.local && \
 	echo "permit nopass nolog keepenv dev as root" > /etc/doas.conf && \
 	echo "[ -f \"\$HOME/.config/bash/bashrc\" ] && . \"\$HOME/.config/bash/bashrc\"" >>/etc/bash.bashrc
 
