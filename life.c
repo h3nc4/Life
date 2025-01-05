@@ -156,7 +156,7 @@ static void update_grid()
 	struct timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 	#endif
-	#pragma omp parallel for schedule(guided) // Parallelize loop
+	#pragma omp parallel for schedule(static) // Parallelize loop
 	for (unsigned int idx = 0; idx < game.size; idx++)
 		current_grid[idx] = IS_ALIVE(COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width), prev_grid[idx]);
 	game.grid_state ^= 1;
@@ -215,7 +215,7 @@ static void draw_grid()
 	struct timespec start_time, end_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 	#endif
-	#pragma omp parallel for schedule(guided) // Parallelize loop
+	#pragma omp parallel for schedule(static) // Parallelize loop
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
 			draw(i);
