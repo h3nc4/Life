@@ -25,7 +25,7 @@ jobs:
             make
       - name: Build
         run: |
-          make DEBUG_FLAGS=-DDEBUG_FPS_LOGGING
+          make DEBUG_FLAGS=-DFPS_LOGGING
           tar -cf life.tar life
       - uses: actions/upload-artifact@v4
         with:
