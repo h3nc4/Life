@@ -74,7 +74,7 @@ static GC gc;
 static XShmSegmentInfo shm_info;
 static XImage *ximage = NULL;
 
-#ifdef DEBUG_FPS_LOGGING
+#ifdef FPS_LOGGING
 unsigned int frame_count = 0;
 unsigned int update_count = 0;
 ull fps_timer_start = 0;
@@ -101,20 +101,24 @@ ull fps_timer_start = 0;
 
 static void free_game()
 {
-	if (ximage) {
+	if (ximage)
+	{
 		XDestroyImage(ximage);
 		ximage = NULL;
 	}
 	XShmDetach(display, &shm_info);
-	if (shm_info.shmaddr) {
+	if (shm_info.shmaddr)
+	{
 		shmdt(shm_info.shmaddr);
 		shm_info.shmaddr = NULL;
 	}
-	if (grid) {
+	if (grid)
+	{
 		free(grid);
 		grid = NULL;
 	}
-	if (row_offsets) {
+	if (row_offsets)
+	{
 		free(row_offsets);
 		row_offsets = NULL;
 	}
@@ -147,11 +151,19 @@ static void update_grid()
 {
 	current_grid = grid + game.size * game.grid_state;
 	prev_grid = grid + game.size * (game.grid_state ^ 1);
+	#ifdef UPDATE_CALC_LOGGING
+	struct timespec start_time, end_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	#endif
 	#pragma omp parallel for schedule(guided) // Parallelize loop
 	for (unsigned int idx = 0; idx < game.size; idx++)
 		current_grid[idx] = IS_ALIVE(COUNT_LIVING_NEIGHBORS(idx / game.width, idx % game.width), prev_grid[idx]);
 	game.grid_state ^= 1;
-	#ifdef DEBUG_FPS_LOGGING
+	#ifdef UPDATE_CALC_LOGGING
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+	printf("Update time: %ld ns\n", (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_nsec - start_time.tv_nsec) / 1000L);
+	#endif
+	#ifdef FPS_LOGGING
 	update_count++;
 	#endif
 }
@@ -198,10 +210,18 @@ static inline void draw(int i)
 static void draw_grid()
 {
 	memset(ximage->data, 0, ximage->bytes_per_line * ximage->height);
+	#ifdef UPDATE_DRAW_LOGGING
+	struct timespec start_time, end_time;
+	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	#endif
 	#pragma omp parallel for schedule(guided) // Parallelize loop
 	for (unsigned int i = 0; i < game.size; i++)
 		if (current_grid[i])
 			draw(i);
+	#ifdef UPDATE_DRAW_LOGGING
+	clock_gettime(CLOCK_MONOTONIC, &end_time);
+	printf("Draw time: %ld ns\n", (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_nsec - start_time.tv_nsec) / 1000L);
+	#endif
 }
 
 static void handle_key_press(KeySym key)
@@ -249,7 +269,7 @@ static void handle_events()
 	}
 }
 
-#ifdef DEBUG_FPS_LOGGING
+#ifdef FPS_LOGGING
 static void debug_fps_logging(ull now)
 {
 	frame_count++;
@@ -277,7 +297,7 @@ static void game_loop(struct timespec *current_time, ull *last_render, ull *last
 	{
 		draw_grid();
 		XShmPutImage(display, window, gc, ximage, 0, 0, 0, 0, game.width * CELL_SIZE, game.height * CELL_SIZE, False);
-		#ifdef DEBUG_FPS_LOGGING
+		#ifdef FPS_LOGGING
 		debug_fps_logging(now);
 		#endif
 		*last_render = now;
@@ -291,7 +311,7 @@ static void start_game()
 	ull last_update = 0;
 	struct timespec current_time;
 
-	#ifdef DEBUG_FPS_LOGGING
+	#ifdef FPS_LOGGING
 	struct timespec start_time;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
 	fps_timer_start = start_time.tv_sec;
@@ -368,7 +388,7 @@ x_error:
 
 int main(int argc, char *argv[])
 {
-	#ifdef DEBUG_FPS_LOGGING
+	#ifdef FPS_LOGGING
 	setbuf(stdout, NULL);
 	#endif
 	if (argc == 2 && (CELL_SIZE = atoi(argv[1])) <= 0)
