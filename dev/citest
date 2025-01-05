@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+for i in $(seq 0 9); do
+	dev/test >/dev/null
+done
+
+dev/analyze

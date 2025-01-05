@@ -44,11 +44,11 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends xvfb
+          DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends python3 xvfb
       - uses: actions/download-artifact@v4
         with:
           name: life
       - name: Extract artifact
         run: tar -xf life.tar
       - name: Test
-        run: dev/test
+        run: dev/citest
