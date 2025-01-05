@@ -43,28 +43,36 @@ def calculate_averages(file_paths):
 # Parse arguments
 parser = argparse.ArgumentParser(description="Process log files to calculate averages.")
 parser.add_argument("-c", "--compare", action="store_true", help="Compare two versions of logs.")
+parser.add_argument("-m", "--max-logs", type=int, default=10, help="Maximum number of log files to process.")
 args = parser.parse_args()
 
 # Prepare log files
 if args.compare:
-	version1_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(5)]
-	version2_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(5, 10)]
+	version1_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs // 2)]
+	version2_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs // 2, args.max_logs - 1)]
 	version1_files[0] = os.path.join(LOG_DIR, "results.log")
 	version1_avg = calculate_averages(version1_files)
 	version2_avg = calculate_averages(version2_files)
 	print("Comparison of Averages:", file=sys.stdout)
-	print("Metric                  | Version 1 (logs 0-4)   | Version 2 (logs 5-9)", file=sys.stdout)
+	print(f"Metric                  | Version 1 (logs 0-{args.max_logs // 2 - 1}) | Version 2 (logs {args.max_logs // 2}-{args.max_logs - 1})", file=sys.stdout)
 	print("------------------------|------------------------|----------------------", file=sys.stdout)
 	print(f"FPS (average)           | {version1_avg[0]:.2f}                  | {version2_avg[0]:.2f}", file=sys.stdout)
 	print(f"Draw time (average ns)  | {version1_avg[1]:.2f}                | {version2_avg[1]:.2f}", file=sys.stdout)
 	print(f"Update time (average ns)| {version1_avg[2]:.2f}                | {version2_avg[2]:.2f}", file=sys.stdout)
 	sys.exit(0)
 
-all_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(10)]
+if args.max_logs < 1:
+	print("Error: Maximum number of logs must be at least 1.", file=sys.stderr)
+	sys.exit(1)
+if not os.path.exists(os.path.join(LOG_DIR, f"results.log.{args.max_logs - 1}")):
+	print(f"Error: Not enough logs found in {LOG_DIR}.", file=sys.stderr)
+	sys.exit(1)
+
+all_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs)]
 all_files[0] = os.path.join(LOG_DIR, "results.log")
 all_avg = calculate_averages(all_files)
 print("Averages for All Logs:", file=sys.stdout)
-print("Metric                  | All Logs (0-9)", file=sys.stdout)
+print(f"Metric                  | All Logs (0-{args.max_logs - 1})", file=sys.stdout)
 print("------------------------|----------------------", file=sys.stdout)
 print(f"FPS (average)           | {all_avg[0]:.2f}", file=sys.stdout)
 print(f"Draw time (average ns)  | {all_avg[1]:.2f}", file=sys.stdout)
