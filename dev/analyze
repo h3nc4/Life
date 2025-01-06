@@ -1,109 +1,108 @@
 #!/usr/bin/env python3
 import os
 import sys
-import re
 import argparse
-from statistics import mean
+import gzip
+import json
+from statistics import mean, median, stdev
 
 LOG_DIR = "./logs"
 
 
-def process_resolution(line, current_resolution, resolution_data):
-	"""
-	Process a line from the log file to extract FPS, Draw time, and Update time values.
-	"""
-	if not current_resolution:
-		return resolution_data
-	fps_match = re.search(r"(\d+\.\d+) FPS", line)
-	draw_match = re.search(r"(\d+\.\d+) ns \(average Draw time\)", line)
-	update_match = re.search(r"(\d+\.\d+) ns \(average Update time\)", line)
-	if fps_match:
-		resolution_data[current_resolution]["fps"].append(float(fps_match.group(1)))
-	if draw_match:
-		resolution_data[current_resolution]["draw_times"].append(float(draw_match.group(1)))
-	if update_match:
-		resolution_data[current_resolution]["update_times"].append(float(update_match.group(1)))
-	return resolution_data
-
-
-def parse_log_file(file_path):
+def parse_log(file_path):
 	"""
 	Parse a log file to extract FPS, Draw time, and Update time values per resolution.
 	"""
-	resolution_data = {}
-	current_resolution = None
-	file = open(file_path, "r")
-	for line in file:
-		resolution_match = re.match(r"(\d+x\d+):", line)
-		if resolution_match:
-			current_resolution = resolution_match.group(1)
-			resolution_data[current_resolution] = {"fps": [], "draw_times": [], "update_times": []}
-		else:
-			resolution_data = process_resolution(line, current_resolution, resolution_data)
-	file.close()
-	return resolution_data
+	with gzip.open(file_path, "rt") as file:
+		log_data = json.load(file)
+	parsed_data = {}
+	for entry in log_data:
+		parsed_data[entry["resolution"]] = {
+			"fps": entry["fps"],
+			"draw_times": entry["draw_time"],
+			"update_times": entry["update_time"],
+		}
+	return parsed_data
 
 
-def calculate_averages(file_paths):
+def calc_metrics(data):
 	"""
-	Calculate average FPS, Draw time, and Update time from multiple log files.
+	Calculate min, max, mean, median, and standard deviation for a list of data.
 	"""
-	all_resolutions_data = {}
+	return {
+		"min": min(data),
+		"max": max(data),
+		"mean": mean(data),
+		"median": median(data),
+		"stdev": stdev(data),
+	}
+
+
+def calc_stats(file_paths):
+	"""
+	Calculate statistics (min, max, mean, median, stdev) for FPS, Draw time, and Update time.
+	"""
+	raw_data = {}
 	for file_path in file_paths:
-		resolution_data = parse_log_file(file_path)
-		for resolution, metrics in resolution_data.items():
-			if resolution not in all_resolutions_data:
-				all_resolutions_data[resolution] = {"fps": [], "draw_times": [], "update_times": []}
-			all_resolutions_data[resolution]["fps"].extend(metrics["fps"])
-			all_resolutions_data[resolution]["draw_times"].extend(metrics["draw_times"])
-			all_resolutions_data[resolution]["update_times"].extend(metrics["update_times"])
-	averages = {}
-	for resolution, metrics in all_resolutions_data.items():
-		avg_fps = mean(metrics["fps"]) if metrics["fps"] else 0
-		avg_draw_time = mean(metrics["draw_times"]) if metrics["draw_times"] else 0
-		avg_update_time = mean(metrics["update_times"]) if metrics["update_times"] else 0
-		averages[resolution] = (avg_fps, avg_draw_time, avg_update_time)
-	return averages
+		try:
+			log_data = parse_log(file_path)
+		except Exception as e:
+			print(f"Error: Failed to parse log file {file_path}: {e}", file=sys.stderr)
+			continue
+		for res, metrics in log_data.items():
+			if res not in raw_data:
+				raw_data[res] = {"fps": [], "draw_times": [], "update_times": []}
+			raw_data[res]["fps"].extend(metrics["fps"])
+			raw_data[res]["draw_times"].extend(metrics["draw_times"])
+			raw_data[res]["update_times"].extend(metrics["update_times"])
+	stats = {}
+	for res, metrics in raw_data.items():
+		stats[res] = {
+			"fps": calc_metrics(metrics["fps"]),
+			"draw_times": calc_metrics(metrics["draw_times"]),
+			"update_times": calc_metrics(metrics["update_times"]),
+		}
+	return stats
+
+
+def print_stats(stats):
+	"""
+	Print statistics in a tabular format.
+	"""
+	print(" " + "-" * 95, file=sys.stdout)
+	print(f"| {'Res':<10} | {'Metric':<16} | {'Min':<10} | {'Max':<10} | {'Mean':<10} | {'Median':<10} | {'Std Dev':<10}|", file=sys.stdout)
+	print("|" + "-" * 95 + "|", file=sys.stdout)
+	for res, metrics in stats.items():
+		print(f"|            | {'FPS':<16} | {metrics['fps']['min']:<10.2f} | {metrics['fps']['max']:<10.2f} | {metrics['fps']['mean']:<10.2f} | {metrics['fps']['median']:<10.2f} | {metrics['fps']['stdev']:<10.2f}|", file=sys.stdout)
+		print(f"| {res:<10} | {'Draw time (ns)':<16} | {metrics['draw_times']['min']:<10.2f} | {metrics['draw_times']['max']:<10.2f} | {metrics['draw_times']['mean']:<10.2f} | {metrics['draw_times']['median']:<10.2f} | {metrics['draw_times']['stdev']:<10.2f}|", file=sys.stdout)
+		print(f"|            | {'Update time (ns)':<16} | {metrics['update_times']['min']:<10.2f} | {metrics['update_times']['max']:<10.2f} | {metrics['update_times']['mean']:<10.2f} | {metrics['update_times']['median']:<10.2f} | {metrics['update_times']['stdev']:<10.2f}|", file=sys.stdout)
+		print(" " + "-" * 95, file=sys.stdout)
 
 
 # Parse arguments
-parser = argparse.ArgumentParser(description="Process log files to calculate averages.")
+parser = argparse.ArgumentParser(description="Process log files to calculate statistics.")
 parser.add_argument("-c", "--compare", action="store_true", help="Compare two versions of logs.")
 parser.add_argument("-m", "--max-logs", type=int, default=10, help="Maximum number of log files to process.")
 args = parser.parse_args()
 
 # Prepare log files
 if args.compare:
-	version1_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs // 2)]
-	version2_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs // 2, args.max_logs - 1)]
-	version1_files[0] = os.path.join(LOG_DIR, "results.log")
-	version1_avg = calculate_averages(version1_files)
-	version2_avg = calculate_averages(version2_files)
-	print("-" * 60, file=sys.stdout)
-	print(f"{'Res':<10} | {'Metric':<23} | {'Version 1':<8} | {'Version 2':<8}", file=sys.stdout)
-	print("-" * 60, file=sys.stdout)
-	for resolution in version1_avg:
-		print(f"           | FPS (average)           | {version1_avg[resolution][0]:.2f}     | {version2_avg[resolution][0]:.2f}", file=sys.stdout)
-		print(f"{resolution:<10} | Draw time (average ns)  | {version1_avg[resolution][1]:.2f}   | {version2_avg[resolution][1]:.2f}", file=sys.stdout)
-		print(f"           | Update time (average ns)| {version1_avg[resolution][2]:.2f}   | {version2_avg[resolution][2]:.2f}", file=sys.stdout)
-		print("-" * 60, file=sys.stdout)
+	v1_files = [os.path.join(LOG_DIR, f"results.json.log.{i}.gz") for i in range(args.max_logs // 2)]
+	v2_files = [os.path.join(LOG_DIR, f"results.json.log.{i}.gz") for i in range(args.max_logs // 2, args.max_logs - 1)]
+	v1_files[0] = os.path.join(LOG_DIR, "results.json.log.gz")
+	print("First version:")
+	print_stats(calc_stats(v1_files))
+	print("\nSecond version:")
+	print_stats(calc_stats(v2_files))
 	sys.exit(0)
 
 if args.max_logs < 1:
 	print("Error: Maximum number of logs must be at least 1.", file=sys.stderr)
 	sys.exit(1)
-if not os.path.exists(os.path.join(LOG_DIR, f"results.log.{args.max_logs - 1}")):
+if not os.path.exists(os.path.join(LOG_DIR, f"results.json.log.{args.max_logs - 1}.gz")):
 	print(f"Error: Not enough logs found in {LOG_DIR}.", file=sys.stderr)
 	sys.exit(1)
 
-all_files = [os.path.join(LOG_DIR, f"results.log.{i}") for i in range(args.max_logs)]
-all_files[0] = os.path.join(LOG_DIR, "results.log")
-all_avg = calculate_averages(all_files)
-print("-" * 46, file=sys.stdout)
-print(f"{'Res':<10} | Metric", file=sys.stdout)
-print("-" * 46, file=sys.stdout)
-for resolution in all_avg:
-	print(f"           | FPS (average)           | {all_avg[resolution][0]:.2f}", file=sys.stdout)
-	print(f"{resolution:<10} | Draw time (average ns)  | {all_avg[resolution][1]:.2f}", file=sys.stdout)
-	print(f"           | Update time (average ns)| {all_avg[resolution][2]:.2f}", file=sys.stdout)
-	print("-" * 46, file=sys.stdout)
+all_files = [os.path.join(LOG_DIR, f"results.json.log.{i}.gz") for i in range(args.max_logs)]
+all_files[0] = os.path.join(LOG_DIR, "results.json.log.gz")
+print_stats(calc_stats(all_files))

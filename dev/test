@@ -4,8 +4,8 @@ set -e
 export DISPLAY=:99
 readonly DISPLAY
 readonly EXTRA_LOG_FILES=9
-readonly LOG_FILE="./logs/run.log"
-readonly LOG_RESULTS_FILE="./logs/results.log"
+readonly LOG_FILE="./logs/run.json.log"
+readonly LOG_RESULTS_FILE="./logs/results.json.log"
 readonly RESOLUTIONS="1366x768 1920x1080 2560x1440 3840x2160 5120x2880"
 readonly TIMEOUT=10
 
@@ -18,32 +18,25 @@ mkdir -p "$(dirname "$LOG_FILE")"
 i=$EXTRA_LOG_FILES
 while [ "$i" -gt 1 ]; do
 	j=$((i - 1))
-	if [ -f "$LOG_FILE.$j" ]; then
-		mv "$LOG_FILE.$j" "$LOG_FILE.$i"
-		mv "$LOG_RESULTS_FILE.$j" "$LOG_RESULTS_FILE.$i"
+	if [ -f "$LOG_FILE.$j.gz" ]; then
+		mv "$LOG_FILE.$j.gz" "$LOG_FILE.$i.gz"
+		mv "$LOG_RESULTS_FILE.$j.gz" "$LOG_RESULTS_FILE.$i.gz"
 	fi
 	i=$j
 done
 
-if [ -f "$LOG_FILE" ]; then
-	mv "$LOG_FILE" "$LOG_FILE.1"
-	mv "$LOG_RESULTS_FILE" "$LOG_RESULTS_FILE.1"
+if [ -f "$LOG_FILE.gz" ]; then
+	mv "$LOG_FILE.gz" "$LOG_FILE.1.gz"
+	mv "$LOG_RESULTS_FILE.gz" "$LOG_RESULTS_FILE.1.gz"
 fi
 
 # Create a temporary file to store the current run's output and ensure it's cleaned up
 CURRENT_RUN_FILE=$(mktemp)
 trap 'rm -f "$CURRENT_RUN_FILE"' EXIT
 
+echo "[" > "$LOG_RESULTS_FILE" # Start JSON array
 for RES in $RESOLUTIONS; do
-	FPS_TOTAL=0
-	FPS_COUNT=0
-	DRAW_TIME_TOTAL=0
-	DRAW_TIME_COUNT=0
-	UPDATE_TIME_TOTAL=0
-	UPDATE_TIME_COUNT=0
-
 	# Start Xvfb with the specified resolution
-	echo "Testing resolution: $RES" | tee -a "$LOG_FILE"
 	Xvfb "$DISPLAY" -screen 0 "${RES}x24" 2>/dev/null &
 	XVFB_PID=$!
 	sleep 1
@@ -52,19 +45,13 @@ for RES in $RESOLUTIONS; do
 	while read -r line; do
 		case "$line" in
 		*"FPS:"*)
-			FPS=$(echo "$line" | awk '{print $2}')
-			FPS_TOTAL=$((FPS_TOTAL + FPS))
-			FPS_COUNT=$((FPS_COUNT + 1))
+			FPS="${FPS}$(echo "$line" | awk '{print $2}'), "
 			;;
 		*"Draw time:"*)
-			DRAW_TIME=$(echo "$line" | awk '{print $3}')
-			DRAW_TIME_TOTAL=$((DRAW_TIME_TOTAL + DRAW_TIME))
-			DRAW_TIME_COUNT=$((DRAW_TIME_COUNT + 1))
+			DRAW_TIME="${DRAW_TIME}$(echo "$line" | awk '{print $3}'), "
 			;;
 		*"Update time:"*)
-			UPDATE_TIME=$(echo "$line" | awk '{print $3}')
-			UPDATE_TIME_TOTAL=$((UPDATE_TIME_TOTAL + UPDATE_TIME))
-			UPDATE_TIME_COUNT=$((UPDATE_TIME_COUNT + 1))
+			UPDATE_TIME="${UPDATE_TIME}$(echo "$line" | awk '{print $3}'), "
 			;;
 		esac
 	done <<EOF
@@ -74,23 +61,25 @@ EOF
 	# Clean up
 	kill "$XVFB_PID" 2>/dev/null || : # Kill Xvfb
 
-	# Calculate and print the averages
-	if [ "$FPS_COUNT" -le 0 ] || [ "$DRAW_TIME_COUNT" -le 0 ] || [ "$UPDATE_TIME_COUNT" -le 0 ]; then
-		echo "Error: No data collected for $RES" | tee -a "$LOG_RESULTS_FILE" >&2
-		return 1
-	fi
-	FPS_AVERAGE=$(awk -v t="$FPS_TOTAL" -v c="$FPS_COUNT" 'BEGIN {printf "%.2f", t/c}')
-	DRAW_TIME_AVERAGE=$(awk -v t="$DRAW_TIME_TOTAL" -v c="$DRAW_TIME_COUNT" 'BEGIN {printf "%.2f", t/c}')
-	UPDATE_TIME_AVERAGE=$(awk -v t="$UPDATE_TIME_TOTAL" -v c="$UPDATE_TIME_COUNT" 'BEGIN {printf "%.2f", t/c}')
-
-	# Print results
-	tee -a "$LOG_RESULTS_FILE" <<EOF
-$RES:
-  $FPS_AVERAGE FPS (average)
-  $DRAW_TIME_AVERAGE ns (average Draw time)
-  $UPDATE_TIME_AVERAGE ns (average Update time)
+	# Format data as JSON
+	[ "$RES" != "${RESOLUTIONS##* }" ] && COMMA="," || COMMA=""
+	tee -a "$LOG_RESULTS_FILE" >/dev/null <<EOF
+	{
+		"resolution": "$RES",
+		"fps": [${FPS%??}],
+		"draw_time": [${DRAW_TIME%??}],
+		"update_time": [${UPDATE_TIME%??}]
+	}$COMMA
 EOF
-	wait "$XVFB_PID" || :
+
+	# Reset data
+	FPS=""
+	DRAW_TIME=""
+	UPDATE_TIME=""
 done
 
-echo "Benchmark completed. Results saved to $LOG_RESULTS_FILE."
+# Close JSON array
+echo "]" >> "$LOG_RESULTS_FILE"
+
+gzip "$LOG_FILE" "$LOG_RESULTS_FILE"
+echo "Benchmark completed. Results saved to $LOG_RESULTS_FILE.gz"
